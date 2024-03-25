@@ -1,0 +1,13 @@
+[package]
+name = "hydra-sentinel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+figment = { workspace = true, features = ["json", "toml", "env"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "signal"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing.workspace = true

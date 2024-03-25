@@ -1,0 +1,12 @@
+# Rust
+target/
+
+# Nix
+result
+.nixos-test-history
+
+# Devshell
+.direnv/
+.cargo/
+
+local.toml
