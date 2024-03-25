@@ -1,5 +1,12 @@
 [workspace]
-members = ["hydra-client"]
+members = [ "builder-proto","hydra-client"]
+
+
+[workspace.dependencies]
+anyhow = "1.0.81"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+tokio = { version = "1.36.0", features = ["full"] }
 
 [package]
 name = "hydra-builder"
@@ -7,7 +14,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.81"
+anyhow.workspace = true
 axum = { version = "0.7.5", features = ["ws", "http2", "macros"] }
 axum-extra = { version = "0.9.3", features = ["typed-header", "tracing"] }
 futures-util = { version = "0.3.30", default-features = false }
@@ -16,10 +23,10 @@ hmac = "0.12.1"
 listenfd = "1.0.1"
 reqwest = "0.12.1"
 secrecy = "0.8.0"
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.114"
+serde.workspace = true
+serde_json.workspace = true
 sha2 = "0.10.8"
-tokio = { version = "1.36.0", features = ["full"] }
+tokio.workspace = true
 tower = { version = "0.4.13", default-features = false, features = ["tracing"] }
 tower-http = { version = "0.5.2", features = ["trace"] }
 tracing = "0.1.40"

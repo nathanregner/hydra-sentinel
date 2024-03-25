@@ -10,11 +10,16 @@
 //! websocket server and how the client-side and server-side code can be quite similar.
 //!
 
+mod keep_alive;
+
+use builder_proto::BuilderMessage;
 use futures_util::stream::FuturesUnordered;
 use futures_util::{SinkExt, StreamExt};
 use std::borrow::Cow;
+use std::convert::Infallible;
 use std::ops::ControlFlow;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tokio::signal;
 
 // we will use tungstenite for websocket client impl (same library as what axum is using)
 use tokio_tungstenite::{
@@ -25,135 +30,114 @@ use tokio_tungstenite::{
 const N_CLIENTS: usize = 1; //set to desired number
 const SERVER: &str = "ws://127.0.0.1:3000/ws";
 
+use backon::ExponentialBuilder;
+use backon::Retryable;
+
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let start_time = Instant::now();
-    //spawn several clients that will concurrently talk to the server
-    let mut clients = (0..N_CLIENTS)
-        .map(|cli| tokio::spawn(spawn_client(cli)))
-        .collect::<FuturesUnordered<_>>();
 
-    //wait for all our clients to exit
-    while clients.next().await.is_some() {}
+    let spawn = spawn_client("0");
+    spawn.retry(&retry).await?;
 
-    let end_time = Instant::now();
-
-    //total time should be the same no matter how many clients we spawn
-    println!(
-        "Total time taken {:#?} with {N_CLIENTS} concurrent clients, should be about 6.45 seconds.",
-        end_time - start_time
-    );
+    let shutdown = shutdown_signal();
+    tokio::select! {
+        _ = shutdown => {},
+        _ = spawn => {},
+    };
+    Ok(())
 }
 
 //creates a client. quietly exits on failure.
-async fn spawn_client(who: usize) {
-    let ws_stream = match connect_async(format!("{SERVER}?hostname={who}")).await {
-        Ok((stream, response)) => {
-            println!("Handshake for client {who} has been completed");
-            // This will be the HTTP response, same as with server this is the last moment we
-            // can still access HTTP stuff.
-            println!("Server response was {response:?}");
-            stream
-        }
-        Err(e) => {
-            println!("WebSocket handshake for client {who} failed with {e}!");
-            return;
-        }
-    };
+async fn spawn_client(hostname: &str) -> anyhow::Result<()> {
+    let retry = ExponentialBuilder::default()
+        .with_jitter()
+        .with_min_delay(Duration::from_secs(1))
+        .with_max_delay(Duration::from_secs(60));
 
-    let (mut sender, mut receiver) = ws_stream.split();
+    let stream = (|| async move {
+        let (stream, response) = connect_async(format!("{SERVER}?hostname={hostname}")).await?;
+        println!("Connected to server: {response:?}");
+        anyhow::Ok(stream)
+    })
+    .retry(&retry)
+    .notify(|err: &anyhow::Error, dur: Duration| {
+        println!("retrying error {:?} with sleeping {:?}", err, dur);
+    })
+    .await?;
 
-    //we can ping the server for start
-    sender
-        .send(Message::Ping("Hello, Server!".into()))
-        .await
-        .expect("Can not send!");
+    let (mut sender, mut receiver) = stream.split();
 
     //spawn an async sender to push some more messages into the server
-    let mut send_task = tokio::spawn(async move {
-        for i in 1..30 {
-            // In any websocket error, break loop.
-            if sender
-                .send(Message::Text(format!("Message number {i}...")))
-                .await
-                .is_err()
-            {
-                //just as with server, if send fails there is nothing we can do but exit.
-                return;
-            }
-
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let send_task = async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            sender.send(Message::Ping(vec![])).await?;
         }
-
-        // When we are done we may want our client to close connection cleanly.
-        println!("Sending close to {who}...");
-        if let Err(e) = sender
-            .send(Message::Close(Some(CloseFrame {
-                code: CloseCode::Normal,
-                reason: Cow::from("Goodbye"),
-            })))
-            .await
-        {
-            println!("Could not send Close due to {e:?}, probably it is ok?");
-        };
-    });
+        #[allow(unreachable_code)]
+        anyhow::Ok(())
+    };
 
     //receiver just prints whatever it gets
-    let mut recv_task = tokio::spawn(async move {
-        while let Some(Ok(msg)) = receiver.next().await {
-            // print message and break if instructed to do so
-            if process_message(msg, who).is_break() {
-                break;
-            }
-        }
-    });
+    let recv_task = async move {
+        let _awake = keepawake::Builder::default()
+            .display(true)
+            .reason("Build queued")
+            .app_name("Nix Hydra Builder")
+            .app_reverse_domain("net.nregner.hydra-util")
+            .create()?;
 
-    //wait for either task to finish and kill the other task
-    tokio::select! {
-        _ = (&mut send_task) => {
-            recv_task.abort();
-        },
-        _ = (&mut recv_task) => {
-            send_task.abort();
+        while let Some(msg) = receiver.next().await {
+            // print message and break if instructed to do so
+            match msg? {
+                Message::Text(_) | Message::Binary(_) => {
+                    let msg = BuilderMessage::try_from(msg)?;
+
+                    continue;
+                }
+                Message::Close(c) => {
+                    println!(">>> somehow got close message without CloseFrame");
+                    break;
+                }
+                _ => {}
+            };
         }
+
+        #[allow(unreachable_code)]
+        anyhow::Ok(())
+    };
+
+    tokio::select! {
+        r = send_task => r,
+        r = recv_task => r,
     }
 }
 
 /// Function to handle messages we get (with a slight twist that Frame variant is visible
 /// since we are working with the underlying tungstenite library directly without axum here).
-fn process_message(msg: Message, who: usize) -> ControlFlow<(), ()> {
-    match msg {
-        Message::Text(t) => {
-            println!(">>> {who} got str: {t:?}");
-        }
-        Message::Binary(d) => {
-            println!(">>> {} got {} bytes: {:?}", who, d.len(), d);
-        }
-        Message::Close(c) => {
-            if let Some(cf) = c {
-                println!(
-                    ">>> {} got close with code {} and reason `{}`",
-                    who, cf.code, cf.reason
-                );
-            } else {
-                println!(">>> {who} somehow got close message without CloseFrame");
-            }
-            return ControlFlow::Break(());
-        }
+fn process_message(msg: Message) -> anyhow::Result<ControlFlow<(), ()>> {}
 
-        Message::Pong(v) => {
-            println!(">>> {who} got pong with {v:?}");
-        }
-        // Just as with axum server, the underlying tungstenite websocket library
-        // will handle Ping for you automagically by replying with Pong and copying the
-        // v according to spec. But if you need the contents of the pings you can see them here.
-        Message::Ping(v) => {
-            println!(">>> {who} got ping with {v:?}");
-        }
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
 
-        Message::Frame(_) => {
-            unreachable!("This is never supposed to happen")
-        }
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
     }
-    ControlFlow::Continue(())
 }

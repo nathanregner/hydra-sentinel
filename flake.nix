@@ -11,7 +11,8 @@
         inherit (nixpkgs) lib;
       in rec {
         packages.default = pkgs.callPackage ({ lib, rustPlatform, pkg-config
-          , openssl, darwin, stdenv, fetchFromGitHub, fetchgit, cargo-typify }:
+          , openssl, darwin, stdenv, fetchFromGitHub, fetchgit, cargo-typify
+          , clang }:
           rustPlatform.buildRustPackage {
             pname = "hydra-hooks";
             version = "1.0.0";
@@ -22,18 +23,24 @@
 
             cargoLock.lockFile = ./Cargo.lock;
 
-            nativeBuildInputs = [ pkg-config openssl ];
-            buildInputs = [ openssl ] ++ lib.optionals stdenv.isDarwin
-              [ darwin.apple_sdk.frameworks.SystemConfiguration ];
-
+            nativeBuildInputs = [ pkg-config ]
+              ++ lib.optionals stdenv.isDarwin [
+                darwin.apple_sdk.frameworks.SystemConfiguration
+                clang
+              ];
+            buildInputs = [ openssl ];
           }) { };
 
         devShells.default = pkgs.mkShell {
-          nativeBuildInputs = packages.default.nativeBuildInputs or [ ]
-            ++ [ pkgs.rustfmt ];
+          buildInputs = packages.default.nativeBuildInputs
+            ++ packages.default.buildInputs ++ [ pkgs.rustfmt ];
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+
+          CARGO_CONFIG = (pkgs.formats.toml { }).generate "config.toml" {
+            paths = [ (pkgs.callPackage ./patches/apple-bindgen { }) ];
+          };
         };
       });
 }
