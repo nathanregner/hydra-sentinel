@@ -1,74 +1,56 @@
-//! Based on tokio-tungstenite example websocket client, but with multiple
-//! concurrent websocket clients in one package
-//!
-//! This will connect to a server specified in the SERVER with N_CLIENTS
-//! concurrent connections, and then flood some test messages over websocket.
-//! This will also print whatever it gets into stdout.
-//!
-//! Note that this is not currently optimized for performance, especially around
-//! stdout mutex management. Rather it's intended to show an example of working with axum's
-//! websocket server and how the client-side and server-side code can be quite similar.
-//!
-
 mod keep_alive;
 
+use backon::{ExponentialBuilder, Retryable};
+use builder_proto::rate_limiter::RateLimiter;
 use builder_proto::BuilderMessage;
-use futures_util::stream::FuturesUnordered;
 use futures_util::{SinkExt, StreamExt};
-use std::borrow::Cow;
-use std::convert::Infallible;
-use std::ops::ControlFlow;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::signal;
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{prelude::*, EnvFilter};
 
-// we will use tungstenite for websocket client impl (same library as what axum is using)
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
-};
-
-const N_CLIENTS: usize = 1; //set to desired number
 const SERVER: &str = "ws://127.0.0.1:3000/ws";
-
-use backon::ExponentialBuilder;
-use backon::Retryable;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let start_time = Instant::now();
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .init();
 
-    let spawn = spawn_client("0");
-    spawn.retry(&retry).await?;
+    let rate_limiter = RateLimiter::new(Duration::from_secs(30));
+    let run = async {
+        loop {
+            rate_limiter.throttle(|| run("0")).await?;
+        }
+        #[allow(unreachable_code)]
+        anyhow::Ok(())
+    };
 
     let shutdown = shutdown_signal();
     tokio::select! {
-        _ = shutdown => {},
-        _ = spawn => {},
-    };
-    Ok(())
+        r = run => r,
+        _ = shutdown => Ok(()),
+    }
 }
 
 //creates a client. quietly exits on failure.
-async fn spawn_client(hostname: &str) -> anyhow::Result<()> {
-    let retry = ExponentialBuilder::default()
-        .with_jitter()
-        .with_min_delay(Duration::from_secs(1))
-        .with_max_delay(Duration::from_secs(60));
-
-    let stream = (|| async move {
+async fn run(hostname: &str) -> anyhow::Result<()> {
+    let (mut sender, mut receiver) = (|| async move {
         let (stream, response) = connect_async(format!("{SERVER}?hostname={hostname}")).await?;
-        println!("Connected to server: {response:?}");
+        tracing::info!("Connected to server: {response:?}");
         anyhow::Ok(stream)
     })
-    .retry(&retry)
-    .notify(|err: &anyhow::Error, dur: Duration| {
-        println!("retrying error {:?} with sleeping {:?}", err, dur);
-    })
-    .await?;
+    .retry(&ExponentialBuilder::default().with_jitter())
+    .notify(|err, dur| tracing::error!(?err, "connect failed, retrying after {dur:?}"))
+    .await?
+    .split();
 
-    let (mut sender, mut receiver) = stream.split();
-
-    //spawn an async sender to push some more messages into the server
     let send_task = async move {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
         loop {
@@ -79,28 +61,49 @@ async fn spawn_client(hostname: &str) -> anyhow::Result<()> {
         anyhow::Ok(())
     };
 
-    //receiver just prints whatever it gets
     let recv_task = async move {
-        let _awake = keepawake::Builder::default()
-            .display(true)
-            .reason("Build queued")
-            .app_name("Nix Hydra Builder")
-            .app_reverse_domain("net.nregner.hydra-util")
-            .create()?;
+        let mut awake_handle = None;
 
         while let Some(msg) = receiver.next().await {
-            // print message and break if instructed to do so
             match msg? {
-                Message::Text(_) | Message::Binary(_) => {
-                    let msg = BuilderMessage::try_from(msg)?;
+                Message::Text(msg) => {
+                    let keep_awake = match BuilderMessage::try_from(msg.as_str()) {
+                        Ok(BuilderMessage::KeepAwake(awake)) => awake,
+                        Err(err) => {
+                            tracing::warn!(?msg, ?err, "Failed to parse message");
+                            continue;
+                        }
+                    };
 
-                    continue;
+                    if keep_awake == awake_handle.is_some() {
+                        continue;
+                    }
+
+                    if keep_awake {
+                        tracing::info!("Server requested keep-awake");
+                        awake_handle = Some(
+                            keepawake::Builder::default()
+                                .display(false)
+                                .idle(true)
+                                .sleep(true)
+                                .reason("Build queued")
+                                .app_name("Nix Hydra Builder")
+                                .app_reverse_domain("net.nregner.hydra-util")
+                                .create()?,
+                        );
+                    } else {
+                        tracing::info!("Server cancelled keep-awake");
+                        awake_handle = None;
+                    }
                 }
-                Message::Close(c) => {
-                    println!(">>> somehow got close message without CloseFrame");
+                Message::Close(_) => {
+                    tracing::info!("Server closed connection");
                     break;
                 }
-                _ => {}
+                Message::Ping(_) => {}
+                Message::Pong(_) => {}
+                Message::Frame(_) => {}
+                Message::Binary(_) => {}
             };
         }
 
@@ -113,10 +116,6 @@ async fn spawn_client(hostname: &str) -> anyhow::Result<()> {
         r = recv_task => r,
     }
 }
-
-/// Function to handle messages we get (with a slight twist that Frame variant is visible
-/// since we are working with the underlying tungstenite library directly without axum here).
-fn process_message(msg: Message) -> anyhow::Result<ControlFlow<(), ()>> {}
 
 async fn shutdown_signal() {
     let ctrl_c = async {

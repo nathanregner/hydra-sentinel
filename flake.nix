@@ -33,7 +33,8 @@
 
         devShells.default = pkgs.mkShell {
           buildInputs = packages.default.nativeBuildInputs
-            ++ packages.default.buildInputs ++ [ pkgs.rustfmt ];
+            ++ packages.default.buildInputs
+            ++ (with pkgs; [ rustfmt cargo-watch ]);
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";

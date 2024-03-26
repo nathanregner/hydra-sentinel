@@ -1081,6 +1081,7 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-extra",
+ "builder-proto",
  "futures-util",
  "hex",
  "hmac",
