@@ -1,16 +1,21 @@
-mod keep_alive;
-
 use backon::{ExponentialBuilder, Retryable};
 use builder_proto::rate_limiter::RateLimiter;
 use builder_proto::BuilderMessage;
+use figment::{providers::Env, Figment};
 use futures_util::{SinkExt, StreamExt};
+use serde::Deserialize;
 use std::time::Duration;
 use tokio::signal;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{prelude::*, EnvFilter};
+use url::Url;
 
-const SERVER: &str = "ws://127.0.0.1:3000/ws";
+#[derive(Deserialize)]
+struct Config {
+    server: Url,
+    hostname: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -19,14 +24,19 @@ async fn main() -> anyhow::Result<()> {
         .with(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
+                .from_env()
+                .unwrap(),
         )
         .init();
+
+    let config = Figment::new()
+        .merge(Env::prefixed("HYDRA_"))
+        .extract::<Config>()?;
 
     let rate_limiter = RateLimiter::new(Duration::from_secs(30));
     let run = async {
         loop {
-            rate_limiter.throttle(|| run("0")).await?;
+            rate_limiter.throttle(|| run(&config)).await?;
         }
         #[allow(unreachable_code)]
         anyhow::Ok(())
@@ -40,9 +50,10 @@ async fn main() -> anyhow::Result<()> {
 }
 
 //creates a client. quietly exits on failure.
-async fn run(hostname: &str) -> anyhow::Result<()> {
+async fn run(config: &Config) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = (|| async move {
-        let (stream, response) = connect_async(format!("{SERVER}?hostname={hostname}")).await?;
+        let (stream, response) =
+            connect_async(format!("{}?hostname={}", config.server, config.hostname)).await?;
         tracing::info!("Connected to server: {response:?}");
         anyhow::Ok(stream)
     })

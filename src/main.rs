@@ -7,18 +7,36 @@ use std::net::SocketAddr;
 
 use crate::hydra::HydraClient;
 use axum::{routing::get, Router};
+use figment::{providers::Env, Figment};
 use listenfd::ListenFd;
 use secrecy::SecretString;
+use serde::Deserialize;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+#[derive(Deserialize)]
+struct Config {
+    listen_addr: String,
+    github_webhook_secret: SecretString,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(EnvFilter::from_default_env())
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env()
+                .unwrap(),
+        )
         .init();
+
+    let config = Figment::new()
+        .merge(Env::prefixed("HYDRA_"))
+        .extract::<Config>()?;
 
     let client = HydraClient::new("https://hydra.nregner.net".parse()?);
 
@@ -28,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
         // logging so we can see whats going on
         .route(
             "/webhook",
-            github::webhook::handler(SecretString::new("secret".to_string())),
+            github::webhook::handler(config.github_webhook_secret),
         )
         .route("/ws", get(hydra::websocket::handler))
         .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()))
@@ -42,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
             TcpListener::from_std(listener).unwrap()
         }
         // otherwise fall back to local listening
-        None => TcpListener::bind("127.0.0.1:3000").await.unwrap(),
+        None => TcpListener::bind(config.listen_addr).await.unwrap(),
     };
 
     tracing::debug!("listening on {}", listener.local_addr()?);

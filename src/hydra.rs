@@ -3,6 +3,7 @@ pub mod websocket;
 
 use reqwest::Url;
 
+/// https://editor.swagger.io/?url=https://raw.githubusercontent.com/NixOS/hydra/master/hydra-api.yaml
 #[derive(Clone)]
 pub struct HydraClient {
     base_url: Url,
@@ -23,5 +24,11 @@ impl HydraClient {
             .append_pair("jobsets", &format!("{project}:{jobset}"));
         self.client.put(url).send().await?;
         Ok(())
+    }
+
+    pub async fn list_projects(&self) -> anyhow::Result<Vec<String>> {
+        let url = self.base_url.join("api/projects")?;
+        let response = self.client.get(url).send().await?.json().await?;
+        Ok(response)
     }
 }

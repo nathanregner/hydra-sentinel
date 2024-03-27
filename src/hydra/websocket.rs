@@ -8,11 +8,11 @@ use axum::{
 use builder_proto::BuilderMessage;
 use serde::Deserialize;
 
-use std::time::Duration;
-use std::ops::ControlFlow;
-use std::net::SocketAddr;
 use axum::extract::connect_info::ConnectInfo;
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use std::net::SocketAddr;
+use std::ops::ControlFlow;
+use std::time::Duration;
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -38,7 +38,9 @@ pub async fn handler(
     tracing::info!("{hostname:?}@{addr} connected");
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| async move { let _ = handle_socket(socket, addr).await; })
+    ws.on_upgrade(move |socket| async move {
+        let _ = handle_socket(socket, addr).await;
+    })
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
@@ -48,10 +50,12 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr) -> anyhow::Result<()>
 
     let send_task = async move {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
-        loop  {
+        loop {
             sender
-                .send(Message::Text(serde_json::to_string(&BuilderMessage::KeepAwake(true)).unwrap()))
-            .await?;
+                .send(Message::Text(
+                    serde_json::to_string(&BuilderMessage::KeepAwake(true)).unwrap(),
+                ))
+                .await?;
             interval.tick().await;
         }
         #[allow(unreachable_code)]

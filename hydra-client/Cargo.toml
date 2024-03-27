@@ -10,14 +10,15 @@ builder-proto.path = "../builder-proto/"
 
 anyhow = "1.0.81"
 axum-extra = "0.9.3"
+backon = "0.4.3"
+figment.workspace = true
 futures-util = { version = "0.3.30", default-features = false }
+keepawake = "0.5.1"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 sha2 = "0.10.8"
 tokio = { version = "1.36.0", features = ["full"] }
 tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-backon = "0.4.3"
-keepawake = "0.5.1"
-
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url = { version = "2.5.0", features = ["serde"] }
