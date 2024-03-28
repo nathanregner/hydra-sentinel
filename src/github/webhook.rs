@@ -2,7 +2,8 @@ use std::convert::Infallible;
 
 use super::events::PushEvent;
 use super::middleware::validate_signature;
-use crate::{error::AppError, hydra::HydraClient};
+use crate::error::AppError;
+use crate::hydra::client::HydraClient;
 use axum::extract::Json;
 use axum::extract::State;
 use axum::middleware;

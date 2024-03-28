@@ -1,11 +1,9 @@
+use crate::builder::Builder;
 use std::{
-    collections::{HashMap, HashSet},
-    fmt,
+    collections::HashMap,
     sync::Mutex,
     time::{Duration, Instant},
 };
-
-use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 
 pub struct BuilderState {
@@ -33,7 +31,7 @@ impl BuilderState {
         self.changed.subscribe()
     }
 
-    pub fn activate(&self, host_name: &str, instant: Instant) {
+    pub fn connect(&self, host_name: &str, instant: Instant) {
         if !self.builders.contains_key(host_name) {
             tracing::warn!("Ignoring activation of unknown builder: {}", host_name);
             return;
@@ -55,7 +53,7 @@ impl BuilderState {
         }
     }
 
-    pub fn deactivate(&self, host_name: &str) {
+    pub fn disconnect(&self, host_name: &str) {
         let mut last_seen = self.last_seen.lock().unwrap();
 
         let changed = last_seen.remove(host_name).is_some();
@@ -67,7 +65,7 @@ impl BuilderState {
         }
     }
 
-    pub fn get_active(&self) -> Vec<&Builder> {
+    pub fn get_connected(&self) -> Vec<&Builder> {
         let mut last_seen = self.last_seen.lock().unwrap();
         let stale = Instant::now() - self.stale_after;
 
@@ -84,64 +82,5 @@ impl BuilderState {
         }
 
         builders
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Builder {
-    ssh_user: Option<String>,
-    host_name: String,
-    system: String,
-    features: HashSet<String>,
-    #[serde(default)]
-    mandatory_features: HashSet<String>,
-    max_jobs: Option<u32>,
-    speed_factor: Option<String>,
-}
-
-impl fmt::Display for Builder {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Builder {
-            ssh_user,
-            host_name,
-            system,
-            features,
-            mandatory_features,
-            max_jobs,
-            speed_factor,
-        } = &self;
-
-        f.write_str("ssh://")?;
-        if let Some(user) = &ssh_user {
-            write!(f, "{user}@")?;
-        }
-        write!(f, "{host_name} {system} ")?;
-
-        if let Some(max_jobs) = max_jobs {
-            write!(f, "{max_jobs} ")?;
-        } else {
-            f.write_str("- ")?;
-        }
-
-        if let Some(speed_factor) = speed_factor {
-            write!(f, "{speed_factor} ")?;
-        } else {
-            f.write_str("- ")?;
-        }
-
-        let features = features
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>()
-            .join(",");
-        f.write_str(if features.len() > 0 { &features } else { "-" })?;
-
-        let features = mandatory_features
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>()
-            .join(",");
-        f.write_str(if features.len() > 0 { &features } else { "-" })?;
-        Ok(())
     }
 }

@@ -1,20 +1,20 @@
-mod error;
-mod github;
-mod hydra;
-mod webhook;
-
-use std::net::SocketAddr;
-
-use crate::hydra::HydraClient;
+use crate::hydra::client::HydraClient;
 use axum::{routing::get, Router};
 use figment::{providers::Env, Figment};
 use listenfd::ListenFd;
 use secrecy::SecretString;
 use serde::Deserialize;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+mod builder;
+mod error;
+mod github;
+mod hydra;
+mod webhook;
 
 #[derive(Deserialize)]
 struct Config {

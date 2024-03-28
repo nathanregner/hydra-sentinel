@@ -1,15 +1,10 @@
-use axum::{
-    extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        Query,
-    },
-    response::IntoResponse,
-};
-use builder_proto::BuilderMessage;
-use serde::Deserialize;
-
 use axum::extract::connect_info::ConnectInfo;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::Query;
+use axum::response::IntoResponse;
+use builder_proto::BuilderMessage;
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
 use std::time::Duration;

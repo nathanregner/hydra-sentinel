@@ -1,7 +1,6 @@
 pub mod rate_limiter;
 
 use serde::{Deserialize, Serialize};
-use tungstenite::Message;
 
 #[derive(Serialize, Deserialize)]
 pub enum BuilderMessage {
