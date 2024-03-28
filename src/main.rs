@@ -1,10 +1,10 @@
-use crate::hydra::client::HydraClient;
+use crate::hydra::{client::HydraClient, state::BuilderState};
 use axum::{routing::get, Router};
 use figment::{providers::Env, Figment};
 use listenfd::ListenFd;
 use secrecy::SecretString;
 use serde::Deserialize;
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing::level_filters::LevelFilter;
@@ -20,6 +20,8 @@ mod webhook;
 struct Config {
     listen_addr: String,
     github_webhook_secret: SecretString,
+    builder_timeout: Duration,
+    builders: Vec<builder::Builder>,
 }
 
 #[tokio::main]
@@ -38,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(Env::prefixed("HYDRA_"))
         .extract::<Config>()?;
 
-    let client = HydraClient::new("https://hydra.nregner.net".parse()?);
+    let hydra_client = HydraClient::new("https://hydra.nregner.net".parse()?);
 
     // build our application with some routes
     let app = Router::new()
@@ -48,9 +50,13 @@ async fn main() -> anyhow::Result<()> {
             "/webhook",
             github::webhook::handler(config.github_webhook_secret),
         )
+        .with_state(hydra_client)
         .route("/ws", get(hydra::websocket::handler))
-        .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()))
-        .with_state(client);
+        .with_state(Arc::new(BuilderState::new(
+            config.builder_timeout,
+            config.builders,
+        )))
+        .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()));
 
     let mut listenfd = ListenFd::from_env();
     let listener = match listenfd.take_tcp_listener(0).unwrap() {

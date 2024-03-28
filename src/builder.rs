@@ -10,7 +10,8 @@ pub struct Builder {
     #[serde(default)]
     pub mandatory_features: HashSet<String>,
     pub max_jobs: Option<u32>,
-    pub speed_factor: Option<String>,
+    pub speed_factor: Option<u32>,
+    pub mac_address: Option<u32>,
 }
 
 impl fmt::Display for Builder {
@@ -23,6 +24,7 @@ impl fmt::Display for Builder {
             mandatory_features,
             max_jobs,
             speed_factor,
+            mac_address: _,
         } = &self;
 
         f.write_str("ssh://")?;

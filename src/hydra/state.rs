@@ -1,27 +1,29 @@
 use crate::builder::Builder;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::Mutex,
     time::{Duration, Instant},
 };
-use tokio::sync::broadcast::{channel, Receiver, Sender};
+use tokio::sync::watch::{channel, Receiver, Sender};
 
 pub struct BuilderState {
-    last_seen: Mutex<HashMap<String, Instant>>,
     builders: HashMap<String, Builder>,
+    last_seen: Mutex<HashMap<String, Instant>>,
+    queued: Mutex<HashSet<String>>,
     stale_after: Duration,
     changed: Sender<()>,
 }
 
 impl BuilderState {
     pub fn new(stale_after: Duration, builders: impl IntoIterator<Item = Builder>) -> Self {
-        let (changed, _) = channel(2);
+        let (changed, _) = channel(());
         BuilderState {
-            last_seen: Mutex::new(HashMap::new()),
             builders: builders
                 .into_iter()
                 .map(|b| (b.host_name.clone(), b))
                 .collect(),
+            queued: Mutex::new(HashSet::new()),
+            last_seen: Mutex::new(HashMap::new()),
             stale_after,
             changed,
         }
@@ -82,5 +84,44 @@ impl BuilderState {
         }
 
         builders
+    }
+
+    pub fn update_queued(&self, queued: impl IntoIterator<Item = String>) {
+        let mut queued = self.queued.lock().unwrap();
+        queued.clear();
+        queued.extend(queued);
+        *queued = queued.into_iter().collect();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn subscribe() {
+        let state = BuilderState::new(
+            Duration::from_secs(60),
+            vec![Builder {
+                ssh_user: None,
+                host_name: "bogus".into(),
+                system: "x86_64-linux".into(),
+                features: Default::default(),
+                mandatory_features: Default::default(),
+                max_jobs: None,
+                speed_factor: None,
+            }],
+        );
+
+        let mut sub = state.subscribe();
+        assert!(!sub.has_changed().unwrap());
+
+        state.connect("bogus", Instant::now());
+        assert!(sub.has_changed().unwrap());
+        sub.mark_unchanged();
+
+        state.disconnect("bogus");
+        assert!(sub.has_changed().unwrap());
+        sub.mark_unchanged();
     }
 }

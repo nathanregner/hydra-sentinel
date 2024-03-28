@@ -1,13 +1,16 @@
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::Query;
+use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use builder_proto::BuilderMessage;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
+use std::sync::Arc;
 use std::time::Duration;
+
+use super::state::BuilderState;
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -21,6 +24,7 @@ pub struct Params {
 /// as well as things from HTTP headers such as user-agent of the browser etc.
 pub async fn handler(
     ws: WebSocketUpgrade,
+    State(state): State<Arc<BuilderState>>,
     Query(Params { hostname }): Query<Params>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
@@ -34,12 +38,16 @@ pub async fn handler(
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| async move {
-        let _ = handle_socket(socket, addr).await;
+        let _ = handle_socket(state, socket, addr).await;
     })
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
-async fn handle_socket(socket: WebSocket, who: SocketAddr) -> anyhow::Result<()> {
+async fn handle_socket(
+    state: Arc<BuilderState>,
+    socket: WebSocket,
+    who: SocketAddr,
+) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = socket.split();
     sender.send(Message::Ping(vec![])).await?;
 
