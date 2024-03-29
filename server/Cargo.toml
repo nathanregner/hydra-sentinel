@@ -1,0 +1,30 @@
+[package]
+name = "hydra-sentinel-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sentinel-protocol.path = "../protocol/"
+
+anyhow.workspace = true
+axum = { workspace = true, features = ["ws", "http2", "macros"] }
+axum-extra = { workspace = true, features = ["typed-header", "tracing"] }
+figment = { workspace = true, features = ["toml", "env"] }
+futures-util = { workspace = true }
+hex = { workspace = true }
+hmac = { workspace = true }
+listenfd = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+secrecy = { workspace = true, features = ["serde"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2 = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tower = { workspace = true, features = ["tracing"] }
+tower-http = { workspace = true, features = ["trace"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing.workspace = true
+wake-on-lan = { workspace = true }
+humantime-serde = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+figment_file_provider_adapter = { workspace = true }

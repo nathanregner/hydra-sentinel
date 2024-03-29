@@ -1,6 +1,7 @@
-use crate::builder::{Builder, MacAddress};
+use crate::model::{Builder, MacAddress};
 use std::{
     collections::{HashMap, HashSet},
+    convert::Infallible,
     net::Ipv4Addr,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -8,7 +9,7 @@ use std::{
 };
 use tokio::{
     fs::File,
-    io::{self, AsyncWriteExt},
+    io::AsyncWriteExt,
     net::UdpSocket,
     sync::watch::{channel, error::RecvError, Receiver, Sender},
 };
@@ -164,10 +165,8 @@ impl<'s> Drop for BuilderHandle<'s> {
     }
 }
 
-pub enum Never {}
-
 #[tracing::instrument(skip_all)]
-pub async fn wake_builders(store: Arc<Store>) -> Result<Never, RecvError> {
+pub async fn wake_builders(store: Arc<Store>) -> anyhow::Result<Infallible> {
     let mut sub = store.subscribe();
     loop {
         tokio::select! {
@@ -185,7 +184,7 @@ pub async fn wake_builders(store: Arc<Store>) -> Result<Never, RecvError> {
     }
 }
 
-pub async fn wake_all(mac_addresses: &[MacAddress]) -> io::Result<()> {
+pub async fn wake_all(mac_addresses: &[MacAddress]) -> anyhow::Result<()> {
     let from_addr = (Ipv4Addr::new(0, 0, 0, 0), 0);
     let socket = UdpSocket::bind(from_addr).await?;
     socket.set_broadcast(true)?;
@@ -208,7 +207,10 @@ pub async fn wake(socket: &UdpSocket, mac_address: MacAddress) {
     }
 }
 
-pub async fn watch_queue(store: Arc<Store>, client: HydraClient) -> Result<Never, RecvError> {
+pub async fn watch_job_queue(
+    store: Arc<Store>,
+    client: HydraClient,
+) -> Result<Infallible, RecvError> {
     let mut interval = tokio::time::interval(Duration::from_secs(15));
     loop {
         interval.tick().await;
@@ -227,7 +229,10 @@ pub async fn watch_queue(store: Arc<Store>, client: HydraClient) -> Result<Never
 }
 
 #[tracing::instrument(skip_all)]
-pub async fn watch_builders(store: Arc<Store>, builders_file: PathBuf) -> anyhow::Result<Never> {
+pub async fn generate_machines_file(
+    store: Arc<Store>,
+    builders_file: PathBuf,
+) -> anyhow::Result<Infallible> {
     // TODO: Validate writable before starting...
 
     let mut current = String::new();

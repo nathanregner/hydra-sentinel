@@ -1,4 +1,4 @@
-use crate::builder::Builder;
+use crate::model::Builder;
 use secrecy::SecretString;
 use serde::Deserialize;
 use std::{path::PathBuf, time::Duration};

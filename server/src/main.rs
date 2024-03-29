@@ -2,25 +2,26 @@ use crate::{
     config::Config,
     hydra::{
         client::HydraClient,
-        store::{wake_builders, watch_builders, watch_queue, Store},
+        store::{generate_machines_file, wake_builders, watch_job_queue, Store},
     },
 };
 use axum::{routing::get, Router};
 use figment::{
-    providers::{Env, Format, Toml},
+    providers::{Env, Toml},
     Figment,
 };
+use figment_file_provider_adapter::FileAdapter;
 use listenfd::ListenFd;
 use std::{future::IntoFuture, net::SocketAddr, sync::Arc};
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, signal};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-mod builder;
 mod config;
 mod error;
 mod github;
 mod hydra;
+mod model;
 mod webhook;
 
 #[tokio::main]
@@ -37,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Figment::new()
         .merge(Toml::string(include_str!("./default.toml")))
-        .merge(Env::prefixed("HYDRA_"))
+        .merge(FileAdapter::wrap(Env::prefixed("HYDRA_")))
         .extract::<Config>()?;
 
     let hydra_client = HydraClient::new(config.hydra_url);
@@ -72,11 +73,12 @@ async fn main() -> anyhow::Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown_signal())
     .into_future();
 
-    let watch = watch_queue(store.clone(), hydra_client);
+    let watch = watch_job_queue(store.clone(), hydra_client);
     let wake = wake_builders(store.clone());
-    let watch_builders = watch_builders(store, config.machines_file);
+    let watch_builders = generate_machines_file(store, config.machines_file);
 
     tokio::select! {
         r = serve => { r?; },
@@ -85,4 +87,28 @@ async fn main() -> anyhow::Result<()> {
         r = watch_builders => { r?; },
     };
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

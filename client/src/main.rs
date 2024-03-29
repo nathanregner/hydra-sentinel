@@ -1,14 +1,15 @@
 use backon::{ExponentialBuilder, Retryable};
-use builder_proto::rate_limiter::RateLimiter;
-use builder_proto::BuilderMessage;
 use figment::{providers::Env, Figment};
 use futures_util::{SinkExt, StreamExt};
+use sentinel_protocol::SentinelMessage;
 use serde::Deserialize;
 use std::time::Duration;
 use tokio::signal;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{prelude::*, EnvFilter};
+
+mod rate_limiter;
 
 #[derive(Deserialize)]
 struct Config {
@@ -48,7 +49,6 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-//creates a client. quietly exits on failure.
 async fn run(config: &Config) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = (|| async move {
         let (stream, response) = connect_async(format!(
@@ -80,8 +80,8 @@ async fn run(config: &Config) -> anyhow::Result<()> {
         while let Some(msg) = receiver.next().await {
             match msg? {
                 Message::Text(msg) => {
-                    let keep_awake = match BuilderMessage::try_from(msg.as_str()) {
-                        Ok(BuilderMessage::KeepAwake(awake)) => awake,
+                    let keep_awake = match SentinelMessage::try_from(msg.as_str()) {
+                        Ok(SentinelMessage::KeepAwake(awake)) => awake,
                         Err(err) => {
                             tracing::warn!(?msg, ?err, "Failed to parse message");
                             continue;
