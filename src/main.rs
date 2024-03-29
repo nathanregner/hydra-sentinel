@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
 
     let watch = watch_queue(store.clone(), hydra_client);
     let wake = wake_builders(store.clone());
-    let watch_builders = watch_builders(store);
+    let watch_builders = watch_builders(store, config.machines_file);
 
     tokio::select! {
         r = serve => { r?; },

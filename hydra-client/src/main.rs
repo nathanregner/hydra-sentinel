@@ -9,7 +9,6 @@ use tokio::signal;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{prelude::*, EnvFilter};
-use url::Url;
 
 #[derive(Deserialize)]
 struct Config {

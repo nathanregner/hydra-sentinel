@@ -1,12 +1,14 @@
 use crate::builder::{Builder, MacAddress};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     net::Ipv4Addr,
+    path::PathBuf,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 use tokio::{
-    io,
+    fs::File,
+    io::{self, AsyncWriteExt},
     net::UdpSocket,
     sync::watch::{channel, error::RecvError, Receiver, Sender},
 };
@@ -40,7 +42,11 @@ impl Store {
         self.changed.subscribe()
     }
 
-    pub fn connect<'s>(&'s self, host_name: &str, now: Instant) -> anyhow::Result<&'s Builder> {
+    pub fn connect<'s>(
+        &'s self,
+        host_name: &str,
+        now: Instant,
+    ) -> anyhow::Result<BuilderHandle<'s>> {
         let Some(builder) = self.builders.get(host_name) else {
             anyhow::bail!("Unknown host: {host_name}");
         };
@@ -62,10 +68,13 @@ impl Store {
         } else {
             anyhow::bail!("{host_name} already connected");
         }
-        Ok(builder)
+        Ok(BuilderHandle {
+            store: self,
+            builder,
+        })
     }
 
-    pub fn disconnect(&self, host_name: &str) {
+    fn disconnect(&self, host_name: &str) {
         let mut last_seen = self.last_seen.lock().unwrap();
 
         let changed = last_seen.remove(host_name).is_some();
@@ -135,10 +144,23 @@ impl Store {
             })
             .collect()
     }
+}
 
-    pub fn wanted(&self, system: &str) -> bool {
-        let current = self.queued_systems.lock().unwrap();
-        current.contains(system)
+pub struct BuilderHandle<'s> {
+    store: &'s Store,
+    builder: &'s Builder,
+}
+
+impl<'s> BuilderHandle<'s> {
+    pub fn wanted(&self) -> bool {
+        let current = self.store.queued_systems.lock().unwrap();
+        current.contains(&self.builder.system)
+    }
+}
+
+impl<'s> Drop for BuilderHandle<'s> {
+    fn drop(&mut self) {
+        self.store.disconnect(&self.builder.host_name)
     }
 }
 
@@ -205,22 +227,28 @@ pub async fn watch_queue(store: Arc<Store>, client: HydraClient) -> Result<Never
 }
 
 #[tracing::instrument(skip_all)]
-pub async fn watch_builders(store: Arc<Store>) -> Result<Never, RecvError> {
+pub async fn watch_builders(store: Arc<Store>, builders_file: PathBuf) -> anyhow::Result<Never> {
+    // TODO: Validate writable before starting...
+
     let mut current = String::new();
     let mut sub = store.subscribe();
     loop {
         let mut updated = store
             .get_connected()
             .into_iter()
-            .map(|b| format!("{}", b))
+            .map(|b| format!("{}\n", b))
             .collect::<Vec<_>>();
         updated.sort();
-        let updated = updated.join("\n");
-        tracing::debug!("Connected builders:\n{updated}");
+        tracing::debug!("{} connected builders", updated.len());
+        let updated = updated.join("");
 
         if current != updated {
             current = updated;
-            tracing::info!("Updated builders file:\n{current}");
+            File::create(&builders_file)
+                .await?
+                .write_all(current.as_bytes())
+                .await?;
+            tracing::info!("Regenerated builders file:\n{current}");
         }
 
         tokio::select! {

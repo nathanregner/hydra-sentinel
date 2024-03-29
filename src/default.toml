@@ -1,6 +1,6 @@
 builder_timeout = "30s"
 hydra_url = "https://hydra.nregner.net"
-machines_file = "/etc/hydra/machines"
+machines_file = "/tmp/hydra-machines"
 
 [[builders]]
 host_name = "enceladus"

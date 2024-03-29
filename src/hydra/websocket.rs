@@ -56,10 +56,10 @@ async fn handle_socket(
     sender.send(Message::Ping(vec![])).await?;
 
     let send_task = async move {
-        let builder = store.connect(&host_name, Instant::now())?;
+        let handle = store.connect(&host_name, Instant::now())?;
         let mut sub = store.subscribe();
         loop {
-            let wanted = store.wanted(&builder.system);
+            let wanted = handle.wanted();
             tracing::debug!(%wanted, "sending keep-awake message");
             sender
                 .send(Message::Text(
