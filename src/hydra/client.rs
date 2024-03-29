@@ -31,7 +31,7 @@ impl HydraClient {
     }
 
     pub async fn get_queue(&self) -> anyhow::Result<Vec<Build>> {
-        let url = self.base_url.join("api/queue")?;
+        let url = self.base_url.join("queue")?;
         let response = self.client.get(url).send().await?.json().await?;
         Ok(response)
     }
@@ -43,7 +43,9 @@ pub struct Build {
     pub jobset: String,
     #[serde(deserialize_with = "int_to_bool")]
     pub finished: bool,
-    pub builder: String,
+    pub starttime: Option<String>,
+    pub stoptime: Option<String>,
+    pub buildstatus: Option<String>,
     pub system: String,
 }
 

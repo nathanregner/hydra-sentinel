@@ -1,5 +1,8 @@
 use serde::{de::Visitor, Deserialize, Deserializer};
-use std::{collections::HashSet, fmt};
+use std::{
+    collections::HashSet,
+    fmt::{self, Display, Write},
+};
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct MacAddress([u8; 6]);
@@ -7,6 +10,17 @@ pub struct MacAddress([u8; 6]);
 impl AsRef<[u8; 6]> for MacAddress {
     fn as_ref(&self) -> &[u8; 6] {
         &self.0
+    }
+}
+
+impl Display for MacAddress {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let bytes = &self.0;
+        write!(
+            f,
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
+        )
     }
 }
 
@@ -50,6 +64,7 @@ pub struct Builder {
     pub ssh_user: Option<String>,
     pub host_name: String,
     pub system: String,
+    #[serde(default)]
     pub features: HashSet<String>,
     #[serde(default)]
     pub mandatory_features: HashSet<String>,
@@ -96,6 +111,7 @@ impl fmt::Display for Builder {
             .collect::<Vec<_>>()
             .join(",");
         f.write_str(if features.len() > 0 { &features } else { "-" })?;
+        f.write_char(' ')?;
 
         let features = mandatory_features
             .iter()

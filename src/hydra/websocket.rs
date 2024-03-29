@@ -8,9 +8,9 @@ use serde::Deserialize;
 use std::net::SocketAddr;
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use super::state::BuilderState;
+use super::store::Store;
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -24,8 +24,10 @@ pub struct Params {
 /// as well as things from HTTP headers such as user-agent of the browser etc.
 pub async fn handler(
     ws: WebSocketUpgrade,
-    State(state): State<Arc<BuilderState>>,
-    Query(Params { hostname }): Query<Params>,
+    State(store): State<Arc<Store>>,
+    Query(Params {
+        hostname: host_name,
+    }): Query<Params>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
@@ -34,17 +36,19 @@ pub async fn handler(
     //     String::from("Unknown browser")
     // };
     // let hostname = "Unknown browser";
-    tracing::info!("{hostname:?}@{addr} connected");
+    tracing::info!("{host_name:?}@{addr} connected");
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| async move {
-        let _ = handle_socket(state, socket, addr).await;
+        let _ = handle_socket(store, host_name, socket, addr).await;
     })
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
+#[tracing::instrument(skip_all, fields(%host_name, %who))]
 async fn handle_socket(
-    state: Arc<BuilderState>,
+    store: Arc<Store>,
+    host_name: String,
     socket: WebSocket,
     who: SocketAddr,
 ) -> anyhow::Result<()> {
@@ -52,14 +56,21 @@ async fn handle_socket(
     sender.send(Message::Ping(vec![])).await?;
 
     let send_task = async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        let builder = store.connect(&host_name, Instant::now())?;
+        let mut sub = store.subscribe();
         loop {
+            let wanted = store.wanted(&builder.system);
+            tracing::debug!(%wanted, "sending keep-awake message");
             sender
                 .send(Message::Text(
-                    serde_json::to_string(&BuilderMessage::KeepAwake(true)).unwrap(),
+                    serde_json::to_string(&BuilderMessage::KeepAwake(wanted)).unwrap(),
                 ))
                 .await?;
-            interval.tick().await;
+
+            tokio::select! {
+                r = sub.changed() => r?,
+                _ = tokio::time::sleep(Duration::from_secs(30)) => {},
+            }
         }
         #[allow(unreachable_code)]
         anyhow::Ok(())

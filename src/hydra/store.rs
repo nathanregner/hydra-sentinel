@@ -1,6 +1,6 @@
 use crate::builder::{Builder, MacAddress};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     net::Ipv4Addr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -13,7 +13,7 @@ use tokio::{
 
 use super::client::HydraClient;
 
-pub struct BuilderState {
+pub struct Store {
     builders: HashMap<String, Builder>,
     last_seen: Mutex<HashMap<String, Instant>>,
     queued_systems: Mutex<HashSet<String>>,
@@ -21,16 +21,16 @@ pub struct BuilderState {
     changed: Sender<()>,
 }
 
-impl BuilderState {
+impl Store {
     pub fn new(stale_after: Duration, builders: impl IntoIterator<Item = Builder>) -> Self {
         let (changed, _) = channel(());
-        BuilderState {
+        Store {
             builders: builders
                 .into_iter()
                 .map(|b| (b.host_name.clone(), b))
                 .collect(),
-            queued_systems: Mutex::new(HashSet::new()),
             last_seen: Mutex::new(HashMap::new()),
+            queued_systems: Mutex::new(HashSet::new()),
             stale_after,
             changed,
         }
@@ -40,28 +40,29 @@ impl BuilderState {
         self.changed.subscribe()
     }
 
-    pub fn connect(&self, host_name: &str, instant: Instant) {
-        if !self.builders.contains_key(host_name) {
-            tracing::warn!(?host_name, "Ignoring unknown host");
-            return;
-        }
+    pub fn connect<'s>(&'s self, host_name: &str, now: Instant) -> anyhow::Result<&'s Builder> {
+        let Some(builder) = self.builders.get(host_name) else {
+            anyhow::bail!("Unknown host: {host_name}");
+        };
 
         let mut last_seen = self.last_seen.lock().unwrap();
 
+        // TODO: separate poll
         let changed = !last_seen.contains_key(host_name);
         last_seen
             .entry(host_name.to_string())
-            .and_modify(|prev| *prev = (*prev).max(instant))
-            .or_insert(instant);
+            .and_modify(|prev| *prev = (*prev).max(now))
+            .or_insert(now);
 
         drop(last_seen);
 
         if changed {
-            tracing::debug!(?host_name, "Builder connected");
+            tracing::debug!("builder connected");
             let _ = self.changed.send(());
         } else {
-            tracing::debug!(?host_name, "Received heartbeat from builder");
+            anyhow::bail!("{host_name} already connected");
         }
+        Ok(builder)
     }
 
     pub fn disconnect(&self, host_name: &str) {
@@ -71,23 +72,23 @@ impl BuilderState {
         drop(last_seen);
 
         if changed {
-            tracing::debug!(?host_name, "disconnected");
+            tracing::debug!("disconnected");
             let _ = self.changed.send(());
         }
     }
 
     pub fn get_connected(&self) -> Vec<&Builder> {
         let mut last_seen = self.last_seen.lock().unwrap();
-        let stale = Instant::now() - self.stale_after;
 
         let mut builders = Vec::new();
         for (host_name, builder) in &self.builders {
             if let Some(at) = last_seen.get(host_name) {
-                if *at < stale {
-                    builders.push(builder);
-                } else {
-                    tracing::debug!(?host_name, "Removed stale builder");
+                let elapsed = at.elapsed();
+                if elapsed > self.stale_after {
+                    tracing::info!("removing stale builder: {host_name}, not seen for {elapsed:?}");
                     last_seen.remove(host_name);
+                } else {
+                    builders.push(builder);
                 }
             }
         }
@@ -107,6 +108,8 @@ impl BuilderState {
             *current = updated;
             tracing::info!("Queue updated: systems = {:?}", *current);
             let _ = self.changed.send(());
+        } else {
+            tracing::debug!("Queue unchanged");
         }
     }
 
@@ -132,55 +135,61 @@ impl BuilderState {
             })
             .collect()
     }
+
+    pub fn wanted(&self, system: &str) -> bool {
+        let current = self.queued_systems.lock().unwrap();
+        current.contains(system)
+    }
 }
 
 pub enum Never {}
 
 #[tracing::instrument(skip_all)]
-pub async fn wake_builders(state: Arc<BuilderState>) -> Result<Never, RecvError> {
-    let mut sub = state.subscribe();
+pub async fn wake_builders(store: Arc<Store>) -> Result<Never, RecvError> {
+    let mut sub = store.subscribe();
     loop {
         tokio::select! {
             r = sub.changed() => r?,
             _ = tokio::time::sleep(Duration::from_secs(30)) => {},
         }
 
-        let mac_addresses = state.machines_to_wake();
+        let mac_addresses = store.machines_to_wake();
         if mac_addresses.is_empty() {
             continue;
         }
-        tracing::debug!("Broadcasting WOL packets to {:?}", mac_addresses);
         if let Err(err) = wake_all(&mac_addresses).await {
-            tracing::error!(?err, "Failed to broadcast WOL packets");
+            tracing::error!(?err, "Failed to open socket");
         };
     }
 }
 
 pub async fn wake_all(mac_addresses: &[MacAddress]) -> io::Result<()> {
-    let to_addr = (Ipv4Addr::new(255, 255, 255, 255), 9);
     let from_addr = (Ipv4Addr::new(0, 0, 0, 0), 0);
     let socket = UdpSocket::bind(from_addr).await?;
     socket.set_broadcast(true)?;
 
     // TODO: parallel?
     for mac_address in mac_addresses {
-        let packet = wake_on_lan::MagicPacket::new(mac_address.as_ref());
-        socket.send_to(packet.magic_bytes(), to_addr).await?;
+        wake(&socket, *mac_address).await;
     }
 
     Ok(())
 }
 
-pub async fn watch_queue(
-    state: Arc<BuilderState>,
-    client: HydraClient,
-) -> Result<Never, RecvError> {
-    let mut sub = state.subscribe();
+#[tracing::instrument(fields(%mac_address))]
+pub async fn wake(socket: &UdpSocket, mac_address: MacAddress) {
+    let to_addr = (Ipv4Addr::new(255, 255, 255, 255), 9);
+    let packet = wake_on_lan::MagicPacket::new(mac_address.as_ref());
+    match socket.send_to(packet.magic_bytes(), to_addr).await {
+        Ok(_) => tracing::debug!("Sent WOL packet"),
+        Err(err) => tracing::error!(?err, "Failed to send WOL packet"),
+    }
+}
+
+pub async fn watch_queue(store: Arc<Store>, client: HydraClient) -> Result<Never, RecvError> {
+    let mut interval = tokio::time::interval(Duration::from_secs(15));
     loop {
-        tokio::select! {
-            r = sub.changed() => r?,
-            _ = tokio::time::sleep(Duration::from_secs(15)) => {},
-        }
+        interval.tick().await;
 
         let builds = match client.get_queue().await {
             Ok(builds) => builds,
@@ -191,19 +200,33 @@ pub async fn watch_queue(
         };
 
         // TODO: log
-        state.update_queued(builds.into_iter().map(|b| b.system));
+        store.update_queued(builds.into_iter().map(|b| b.system));
     }
 }
 
-pub async fn keep_builders_awake(state: Arc<BuilderState>) -> Result<Never, RecvError> {
-    let mut sub = state.subscribe();
+#[tracing::instrument(skip_all)]
+pub async fn watch_builders(store: Arc<Store>) -> Result<Never, RecvError> {
+    let mut current = String::new();
+    let mut sub = store.subscribe();
     loop {
+        let mut updated = store
+            .get_connected()
+            .into_iter()
+            .map(|b| format!("{}", b))
+            .collect::<Vec<_>>();
+        updated.sort();
+        let updated = updated.join("\n");
+        tracing::debug!("Connected builders:\n{updated}");
+
+        if current != updated {
+            current = updated;
+            tracing::info!("Updated builders file:\n{current}");
+        }
+
         tokio::select! {
             r = sub.changed() => r?,
             _ = tokio::time::sleep(Duration::from_secs(30)) => {},
         }
-
-        todo!()
     }
 }
 
@@ -213,7 +236,7 @@ mod tests {
 
     #[test]
     fn subscribe() {
-        let state = BuilderState::new(
+        let store = Store::new(
             Duration::from_secs(60),
             vec![Builder {
                 ssh_user: None,
@@ -227,14 +250,14 @@ mod tests {
             }],
         );
 
-        let mut sub = state.subscribe();
+        let mut sub = store.subscribe();
         assert!(!sub.has_changed().unwrap());
 
-        state.connect("bogus", Instant::now());
+        store.connect("bogus", Instant::now());
         assert!(sub.has_changed().unwrap());
         sub.mark_unchanged();
 
-        state.disconnect("bogus");
+        store.disconnect("bogus");
         assert!(sub.has_changed().unwrap());
         sub.mark_unchanged();
     }

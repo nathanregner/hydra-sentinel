@@ -1,10 +1,10 @@
 [workspace]
-members = [ "builder-proto","hydra-client"]
+members = [ "builder-proto", "hydra-client" ]
 
 
 [workspace.dependencies]
 anyhow = "1.0.81"
-figment = { version = "0.10", features = ["env"] }
+figment = { version = "0.10", features = ["env", "toml"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 tokio = { version = "1.36.0", features = ["full"] }
@@ -12,7 +12,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [package]
-name = "hydra-builder"
+name = "hydra_hooks"
 version = "0.1.0"
 edition = "2021"
 
@@ -38,3 +38,6 @@ tower-http = { version = "0.5.2", features = ["trace"] }
 tracing-subscriber.workspace = true
 tracing.workspace = true
 wake-on-lan = "0.2.0"
+reducer = "3.0.1"
+humantime-serde = "1.1.1"
+url = { version = "2.5.0", features = ["serde"] }

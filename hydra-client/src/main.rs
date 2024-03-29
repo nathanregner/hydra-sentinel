@@ -13,7 +13,7 @@ use url::Url;
 
 #[derive(Deserialize)]
 struct Config {
-    server: Url,
+    server: String,
     hostname: String,
 }
 
@@ -23,14 +23,14 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .with(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
+                .with_default_directive(LevelFilter::DEBUG.into())
                 .from_env()
                 .unwrap(),
         )
         .init();
 
     let config = Figment::new()
-        .merge(Env::prefixed("HYDRA_"))
+        .merge(Env::prefixed("BUILDER_"))
         .extract::<Config>()?;
 
     let rate_limiter = RateLimiter::new(Duration::from_secs(30));
@@ -52,8 +52,11 @@ async fn main() -> anyhow::Result<()> {
 //creates a client. quietly exits on failure.
 async fn run(config: &Config) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = (|| async move {
-        let (stream, response) =
-            connect_async(format!("{}?hostname={}", config.server, config.hostname)).await?;
+        let (stream, response) = connect_async(format!(
+            "ws://{}/ws?hostname={}",
+            config.server, config.hostname
+        ))
+        .await?;
         tracing::info!("Connected to server: {response:?}");
         anyhow::Ok(stream)
     })
