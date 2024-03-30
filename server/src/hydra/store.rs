@@ -1,4 +1,4 @@
-use crate::model::{Builder, MacAddress};
+use crate::model::{Builder, MacAddress, System};
 use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
@@ -19,7 +19,7 @@ use super::client::HydraClient;
 pub struct Store {
     builders: HashMap<String, Builder>,
     last_seen: Mutex<HashMap<String, Instant>>,
-    queued_systems: Mutex<HashSet<String>>,
+    queued_systems: Mutex<HashSet<System>>,
     stale_after: Duration,
     changed: Sender<()>,
 }
@@ -111,7 +111,7 @@ impl Store {
         self.get_connected();
     }
 
-    pub fn update_queued(&self, queued: impl IntoIterator<Item = String>) {
+    pub fn update_queued(&self, queued: impl IntoIterator<Item = System>) {
         let updated = queued.into_iter().collect();
         let mut current = self.queued_systems.lock().unwrap();
         if *current != updated {
@@ -274,7 +274,7 @@ mod tests {
             vec![Builder {
                 ssh_user: None,
                 host_name: "bogus".into(),
-                system: "x86_64-linux".into(),
+                system: System::X86_64Linux,
                 features: Default::default(),
                 mandatory_features: Default::default(),
                 max_jobs: None,

@@ -1,11 +1,10 @@
+use axum::response::{IntoResponse, Response};
 use core::fmt;
+use reqwest::StatusCode;
 use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
 };
-
-use axum::response::{IntoResponse, Response};
-use reqwest::StatusCode;
 
 #[derive(Debug)]
 pub enum AppError {

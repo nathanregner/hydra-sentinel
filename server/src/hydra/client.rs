@@ -2,6 +2,8 @@ use axum::http::HeaderMap;
 use reqwest::Url;
 use serde::{de, Deserialize};
 
+use crate::model::System;
+
 /// https://editor.swagger.io/?url=https://raw.githubusercontent.com/NixOS/hydra/master/hydra-api.yaml
 #[derive(Clone)]
 pub struct HydraClient {
@@ -46,7 +48,7 @@ pub struct Build {
     pub starttime: Option<String>,
     pub stoptime: Option<String>,
     pub buildstatus: Option<String>,
-    pub system: String,
+    pub system: System,
 }
 
 fn int_to_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>

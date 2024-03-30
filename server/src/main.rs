@@ -4,16 +4,18 @@ use crate::{
         client::HydraClient,
         store::{generate_machines_file, wake_builders, watch_job_queue, Store},
     },
+    middleware::allowed_ips,
 };
 use axum::{routing::get, Router};
 use figment::{
-    providers::{Env, Toml},
+    providers::{Env, Format, Toml},
     Figment,
 };
 use figment_file_provider_adapter::FileAdapter;
 use listenfd::ListenFd;
-use std::{future::IntoFuture, net::SocketAddr, sync::Arc};
+use std::{future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, signal};
+use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -21,8 +23,8 @@ mod config;
 mod error;
 mod github;
 mod hydra;
+mod middleware;
 mod model;
-mod webhook;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -30,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .with(
             EnvFilter::builder()
-                .with_default_directive("hydra_hooks=DEBUG".parse()?)
+                .with_default_directive("hydra_sentinel_server=DEBUG".parse()?)
                 .from_env()
                 .unwrap(),
         )
@@ -53,9 +55,20 @@ async fn main() -> anyhow::Result<()> {
             github::webhook::handler(config.github_webhook_secret),
         )
         .with_state(hydra_client.clone())
-        .route("/ws", get(hydra::websocket::handler))
+        .route(
+            "/ws",
+            get(hydra::websocket::connect).route_layer(axum::middleware::from_fn_with_state(
+                config.allowed_ip_ranges,
+                allowed_ips,
+            )),
+        )
         .with_state(store.clone())
-        .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()));
+        .layer((
+            TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()),
+            // Graceful shutdown will wait for outstanding requests to complete. Add a timeout so
+            // requests don't hang forever.
+            TimeoutLayer::new(Duration::from_secs(10)),
+        ));
 
     let mut listenfd = ListenFd::from_env();
     let listener = match listenfd.take_tcp_listener(0).unwrap() {

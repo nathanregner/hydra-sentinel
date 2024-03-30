@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum System {
     #[serde(rename = "x86_64-linux")]
     X86_64Linux,

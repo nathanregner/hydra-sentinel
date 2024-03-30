@@ -21,7 +21,7 @@ pub struct Params {
 /// websocket protocol will occur.
 /// This is the last point where we can extract TCP/IP metadata such as IP address of the client
 /// as well as things from HTTP headers such as user-agent of the browser etc.
-pub async fn handler(
+pub async fn connect(
     ws: WebSocketUpgrade,
     State(store): State<Arc<Store>>,
     Query(Params {
