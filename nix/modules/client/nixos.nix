@@ -28,7 +28,7 @@ in {
             type = types.str;
             example = "rpi4";
             description = lib.mdDoc ''
-              The hostname of the build machine.
+              The hostname of this build machine.
             '';
           };
         };
@@ -46,7 +46,7 @@ in {
       groups.hydra-sentinel-client = { };
     };
 
-    systemd.services.hydra-sentinel-server = {
+    systemd.services.hydra-sentinel-client = {
       wantedBy = [ "multi-user.target" ];
       bindsTo = [ "network-online.target" ];
       after = [ "network-online.target" ];

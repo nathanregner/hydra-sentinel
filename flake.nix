@@ -88,8 +88,16 @@
             };
             services.hydra-sentinel-server = {
               enable = true;
-              settings = { };
+              listenHost = "0.0.0.0";
+              listenPort = 3001;
+              settings = {
+                allowed_ips = [ "192.168.0.0/16" ];
+                github_webhook_secret_file =
+                  pkgs.writeText "github_webhook_secret_file" "hocus pocus";
+              };
             };
+            networking.firewall.allowedTCPPorts =
+              [ config.services.hydra-sentinel-server.listenPort ];
           };
 
           nodes.client = { config, ... }: {
@@ -98,7 +106,7 @@
               enable = true;
               settings = {
                 hostname = "client";
-                server_addr = "http://server:3001";
+                server_addr = "server:3001";
               };
             };
           };
@@ -106,9 +114,8 @@
           testScript = ''
             server.start()
             client.start()
-
             server.wait_for_unit("hydra-sentinel-server.service")
-            client.wait_for_unit("hydra-client-server.service")
+            client.wait_for_unit("hydra-sentinel-client.service")
             # machine.wait_until_succeeds("curl http://localhost:9000/api/app/about", timeout=30)
           '';
         };

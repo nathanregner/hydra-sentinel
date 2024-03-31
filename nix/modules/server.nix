@@ -15,18 +15,22 @@ in {
         default = self.packages."${pkgs.system}".server;
       };
 
+      listenHost = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = mdDoc "Host to listen on.";
+      };
+
+      listenPort = mkOption {
+        type = types.int;
+        default = 3001;
+        description = mdDoc "Port to listen on.";
+      };
+
       settings = lib.mkOption {
         type = types.submodule {
           freeformType = toml.type;
           options = {
-            listen_addr = mkOption {
-              type = types.str;
-              default = "0.0.0.0:3001";
-              description = mdDoc ''
-                An internet socket address to listen on, either IPv4 or IPv6.
-              '';
-            };
-
             github_webhook_secret_file = mkOption {
               type = types.nullOr types.path;
               default = null;
@@ -37,8 +41,7 @@ in {
 
             hydra_base_url = mkOption {
               type = types.str;
-              default =
-                "http://${hydraCfg.listenHost}:${toString hydraCfg.port}";
+              default = "http://127.0.0.1:${toString hydraCfg.port}";
               description = mdDoc ''
                 TODO
               '';
@@ -61,7 +64,7 @@ in {
               '';
             };
 
-            reply_timeout = mkOption {
+            heartbeat_timeout = mkOption {
               type = types.str;
               default = "30s";
               description = mdDoc ''
@@ -180,7 +183,9 @@ in {
       after = [ "hydra-server.service" "hydra-server.service" ];
       serviceConfig = let
         confFile = toml.generate "config.toml"
-          (lib.filterAttrs (_: v: v != null) cfg.settings);
+          ((lib.filterAttrs (_: v: v != null) cfg.settings) // {
+            listen_addr = "${cfg.listenHost}:${toString cfg.listenPort}";
+          });
       in {
         ExecStart = "${cfg.package}/bin/hydra-sentinel-server ${confFile}";
         User = "hydra-sentinel-server";
