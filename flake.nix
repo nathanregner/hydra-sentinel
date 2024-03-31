@@ -80,19 +80,35 @@
             services.hydra = {
               enable = true;
               buildMachinesFiles = [
-                config.services.hydra-sentinel-server.settings.hydraMachinesFile
+                config.services.hydra-sentinel-server.settings.hydra_machines_file
               ];
               hydraURL =
                 "http://localhost:${toString config.services.hydra.port}";
               notificationSender = "";
             };
-            services.hydra-sentinel-server.enable = true;
+            services.hydra-sentinel-server = {
+              enable = true;
+              settings = { };
+            };
+          };
+
+          nodes.client = { config, ... }: {
+            imports = [ self.outputs.nixosModules.client ];
+            services.hydra-sentinel-client = {
+              enable = true;
+              settings = {
+                hostname = "client";
+                server_addr = "http://server:3001";
+              };
+            };
           };
 
           testScript = ''
-            machine.start()
+            server.start()
+            client.start()
 
-            machine.wait_for_unit("hydra-server.service")
+            server.wait_for_unit("hydra-sentinel-server.service")
+            client.wait_for_unit("hydra-client-server.service")
             # machine.wait_until_succeeds("curl http://localhost:9000/api/app/about", timeout=30)
           '';
         };
@@ -105,6 +121,8 @@
 
         nixosModules = {
           server = import ./nix/modules/server.nix { inherit (self) packages; };
+          client =
+            import ./nix/modules/client/nixos.nix { inherit (self) packages; };
         };
       };
 }

@@ -6,13 +6,14 @@ use crate::{
     },
     middleware::allowed_ips,
 };
+use anyhow::Context;
 use axum::{routing::get, Router};
 use figment::{
     providers::{Env, Format, Toml},
     Figment,
 };
-use figment_file_provider_adapter::FileAdapter;
 use listenfd::ListenFd;
+use secrecy::SecretString;
 use std::{future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, signal};
 use tower_http::timeout::TimeoutLayer;
@@ -38,10 +39,24 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let config = Figment::new()
-        .merge(Toml::string(include_str!("./default.toml")))
-        .merge(FileAdapter::wrap(Env::prefixed("HYDRA_")))
+    let figment = std::env::args()
+        .skip(1)
+        .next()
+        .map(|path| {
+            tracing::info!("loading config from {}", path);
+            let path = std::path::Path::new(&path);
+            Figment::from(Toml::file(path))
+        })
+        .unwrap_or_default();
+
+    let config = figment
+        .merge(Env::prefixed("HYDRA_SENTINEL_"))
         .extract::<Config>()?;
+
+    // TODO: Optional; disable webhooks without
+    let github_webhook_secret = std::fs::read_to_string(&config.github_webhook_secret_file)
+        .map(SecretString::from)
+        .context("Failed to read github webhook secret")?;
 
     let hydra_client = HydraClient::new(config.hydra_base_url);
 
@@ -50,10 +65,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         // .route("/ws", get(ws_handler))
         // logging so we can see whats going on
-        .route(
-            "/webhook",
-            github::webhook::handler(config.github_webhook_secret),
-        )
+        .route("/webhook", github::webhook::handler(github_webhook_secret))
         .with_state(hydra_client.clone())
         .route(
             "/ws",

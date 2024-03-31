@@ -19,15 +19,15 @@ in {
         type = types.submodule {
           freeformType = toml.type;
           options = {
-            listenAddr = mkOption {
+            listen_addr = mkOption {
               type = types.str;
-              default = "0.0.0.0:3002";
+              default = "0.0.0.0:3001";
               description = mdDoc ''
                 An internet socket address to listen on, either IPv4 or IPv6.
               '';
             };
 
-            githubWebhookSecretFile = mkOption {
+            github_webhook_secret_file = mkOption {
               type = types.nullOr types.path;
               default = null;
               description = mdDoc ''
@@ -35,7 +35,7 @@ in {
               '';
             };
 
-            hydraBaseUrl = mkOption {
+            hydra_base_url = mkOption {
               type = types.str;
               default =
                 "http://${hydraCfg.listenHost}:${toString hydraCfg.port}";
@@ -44,7 +44,7 @@ in {
               '';
             };
 
-            hydraMachinesFile = mkOption {
+            hydra_machines_file = mkOption {
               type = types.path;
               default = "/var/lib/hydra/machines";
               description = mdDoc ''
@@ -52,7 +52,7 @@ in {
               '';
             };
 
-            allowedIps = mkOption {
+            allowed_ips = mkOption {
               type = types.listOf types.str;
               default = [ ];
               example = [ "192.168.0.0/16" ];
@@ -61,7 +61,7 @@ in {
               '';
             };
 
-            replyTimeout = mkOption {
+            reply_timeout = mkOption {
               type = types.str;
               default = "30s";
               description = mdDoc ''
@@ -69,7 +69,7 @@ in {
               '';
             };
 
-            buildMachines = mkOption {
+            build_machines = mkOption {
               type = types.listOf (types.submodule {
                 options = {
                   sshUser = mkOption {
@@ -83,7 +83,7 @@ in {
                       {option}`nix.settings.trusted-users`.
                     '';
                   };
-                  hostName = mkOption {
+                  hostname = mkOption {
                     type = types.str;
                     example = "nixbuilder.example.org";
                     description = lib.mdDoc ''
@@ -156,22 +156,28 @@ in {
 
   config = lib.mkIf cfg.enable {
     assertions = [{
-      assertion = builtins.elem cfg.settings.hydraMachinesFile
+      assertion = builtins.elem cfg.settings.hydra_machines_file
         hydraCfg.buildMachinesFiles;
       message =
-        "services.hydra-sentinel.hydraMachinesFile must be a member of services.hydra.buildMachinesFiles";
+        "services.hydra-sentinel.hydra_machines_file must be a member of services.hydra.buildMachinesFiles";
     }];
 
     users.users.hydra-sentinel-server = {
       description = "Hydra Sentinel Server";
       group = "hydra";
       isSystemUser = true;
+      # home = "/var/lib/hydra-sentinel-server";
+      # createHome = true;
     };
+
+    systemd.tmpfiles.rules = [
+      "f+ ${cfg.settings.hydra_machines_file} 0660 hydra hydra-sentinel-server -" # for dnsmasq.leases
+    ];
 
     systemd.services.hydra-sentinel-server = {
       wantedBy = [ "multi-user.target" ];
       requires = [ "hydra-server.service" ];
-      after = [ "hydra-server.service" ];
+      after = [ "hydra-server.service" "hydra-server.service" ];
       serviceConfig = let
         confFile = toml.generate "config.toml"
           (lib.filterAttrs (_: v: v != null) cfg.settings);

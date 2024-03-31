@@ -24,9 +24,7 @@ pub struct Params {
 pub async fn connect(
     ws: WebSocketUpgrade,
     State(store): State<Arc<Store>>,
-    Query(Params {
-        hostname: host_name,
-    }): Query<Params>,
+    Query(Params { hostname: hostname }): Query<Params>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> impl IntoResponse {
     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
@@ -35,19 +33,19 @@ pub async fn connect(
     //     String::from("Unknown browser")
     // };
     // let hostname = "Unknown browser";
-    tracing::info!("{host_name:?}@{addr} connected");
+    tracing::info!("{hostname:?}@{addr} connected");
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
     ws.on_upgrade(move |socket| async move {
-        let _ = handle_socket(store, host_name, socket, addr).await;
+        let _ = handle_socket(store, hostname, socket, addr).await;
     })
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
-#[tracing::instrument(skip_all, fields(%host_name, %who))]
+#[tracing::instrument(skip_all, fields(%hostname, %who))]
 async fn handle_socket(
     store: Arc<Store>,
-    host_name: String,
+    hostname: String,
     socket: WebSocket,
     who: SocketAddr,
 ) -> anyhow::Result<()> {
@@ -57,7 +55,7 @@ async fn handle_socket(
     // TODO: throttle
     let store = store.clone();
     let send_task = async move {
-        let handle = store.connect(&host_name, Instant::now())?;
+        let handle = store.connect(&hostname, Instant::now())?;
         let mut sub = store.subscribe();
         loop {
             let wanted = handle.wanted();

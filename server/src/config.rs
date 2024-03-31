@@ -1,6 +1,5 @@
 use crate::model::NixMachine;
 use ipnet::IpNet;
-use secrecy::SecretString;
 use serde::Deserialize;
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 use url::Url;
@@ -18,7 +17,7 @@ pub struct Config {
     pub listen_addr: SocketAddr,
 
     /// Github webhook secret for authenticating push events
-    pub github_webhook_secret: SecretString,
+    pub github_webhook_secret_file: PathBuf,
 
     /// Whitelisted builder ips
     #[serde(default)]

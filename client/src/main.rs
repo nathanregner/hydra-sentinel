@@ -1,12 +1,14 @@
 use backon::{ExponentialBuilder, Retryable};
-use figment::{providers::Env, Figment};
+use figment::{
+    providers::{Env, Format, Toml},
+    Figment,
+};
 use futures_util::{SinkExt, StreamExt};
 use hydra_sentinel_protocol::SentinelMessage;
 use serde::Deserialize;
 use std::time::Duration;
 use tokio::signal;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 use crate::rate_limiter::RateLimiter;
@@ -15,7 +17,7 @@ mod rate_limiter;
 
 #[derive(Deserialize)]
 struct Config {
-    server: String,
+    server_addr: String,
     hostname: String,
 }
 
@@ -25,14 +27,24 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .with(
             EnvFilter::builder()
-                .with_default_directive(LevelFilter::DEBUG.into())
+                .with_default_directive("hydra_sentinel_client=DEBUG".parse()?)
                 .from_env()
                 .unwrap(),
         )
         .init();
 
-    let config = Figment::new()
-        .merge(Env::prefixed("BUILDER_"))
+    let figment = std::env::args()
+        .skip(1)
+        .next()
+        .map(|path| {
+            tracing::info!("loading config from {}", path);
+            let path = std::path::Path::new(&path);
+            Figment::from(Toml::file(path))
+        })
+        .unwrap_or_default();
+
+    let config = figment
+        .merge(Env::prefixed("HYDRA_SENTINEL_"))
         .extract::<Config>()?;
 
     let rate_limiter = RateLimiter::new(Duration::from_secs(30));
@@ -55,7 +67,7 @@ async fn run(config: &Config) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = (|| async move {
         let (stream, response) = connect_async(format!(
             "ws://{}/ws?hostname={}",
-            config.server, config.hostname
+            config.server_addr, config.hostname
         ))
         .await?;
         tracing::info!("Connected to server: {response:?}");

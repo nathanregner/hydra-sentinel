@@ -8,18 +8,18 @@ allowed_ip_ranges = [
 ]
 
 [[builders]]
-host_name = "enceladus"
+hostname = "enceladus"
 system = "aarch64-darwin"
 features = ["nixos-test", "benchmark", "big-parallel"]
 mac_address = "60:3e:5f:4e:4e:bc"
 
 [[builders]]
-host_name = "m3-linux-vm"
+hostname = "m3-linux-vm"
 system = "aarch64-linux"
 features = ["nixos-test", "benchmark", "big-parallel"]
 mac_address = "60:3e:5f:4e:4e:bc"
 
 [[builders]]
-host_name = "iapetus"
+hostname = "iapetus"
 system = "x86_64-linux"
 features = ["nixos-test", "benchmark", "big-parallel"]

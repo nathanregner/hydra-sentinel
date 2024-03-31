@@ -10,7 +10,6 @@ anyhow.workspace = true
 axum = { workspace = true, features = ["ws", "http2", "macros"] }
 axum-extra = { workspace = true, features = ["typed-header", "tracing"] }
 figment = { workspace = true, features = ["toml", "env"] }
-figment_file_provider_adapter = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
 hmac = { workspace = true }
