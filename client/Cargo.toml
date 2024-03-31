@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hydra-sentinel-protocol.path = "../protocol/"
+hydra-sentinel.path = "../lib/"
 
 anyhow = { workspace = true }
 axum-extra = { workspace = true }

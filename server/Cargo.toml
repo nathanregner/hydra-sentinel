@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hydra-sentinel-protocol.path = "../protocol/"
+hydra-sentinel.path = "../lib/"
 
 anyhow.workspace = true
 axum = { workspace = true, features = ["ws", "http2", "macros"] }

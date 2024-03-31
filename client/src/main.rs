@@ -1,15 +1,12 @@
 use backon::{ExponentialBuilder, Retryable};
-use figment::{
-    providers::{Env, Format, Toml},
-    Figment,
-};
+
 use futures_util::{SinkExt, StreamExt};
-use hydra_sentinel_protocol::SentinelMessage;
+use hydra_sentinel::{shutdown_signal, SentinelMessage};
 use serde::Deserialize;
 use std::time::Duration;
-use tokio::signal;
+
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{prelude::*};
 
 use crate::rate_limiter::RateLimiter;
 
@@ -23,29 +20,7 @@ struct Config {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(
-            EnvFilter::builder()
-                .with_default_directive("hydra_sentinel_client=DEBUG".parse()?)
-                .from_env()
-                .unwrap(),
-        )
-        .init();
-
-    let figment = std::env::args()
-        .skip(1)
-        .next()
-        .map(|path| {
-            tracing::info!("loading config from {}", path);
-            let path = std::path::Path::new(&path);
-            Figment::from(Toml::file(path))
-        })
-        .unwrap_or_default();
-
-    let config = figment
-        .merge(Env::prefixed("HYDRA_SENTINEL_"))
-        .extract::<Config>()?;
+    let config = hydra_sentinel::init::<Config>()?;
 
     let rate_limiter = RateLimiter::new(Duration::from_secs(30));
     let run = async {
@@ -141,29 +116,5 @@ async fn run(config: &Config) -> anyhow::Result<()> {
     tokio::select! {
         r = send_task => r,
         r = recv_task => r,
-    }
-}
-
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
     }
 }

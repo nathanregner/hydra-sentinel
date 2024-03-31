@@ -1,9 +1,9 @@
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
-use axum::response::{AppendHeaders, IntoResponse};
+use axum::response::IntoResponse;
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use hydra_sentinel_protocol::SentinelMessage;
+use hydra_sentinel::SentinelMessage;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use std::net::SocketAddr;
@@ -89,7 +89,7 @@ async fn handle_socket(
 
     let recv_task = async move {
         // TODO: update last seen
-        while let Some(Ok(msg)) = receiver.next().await {
+        while let Some(Ok(_msg)) = receiver.next().await {
             tracing::trace!("received message from {hostname}");
         }
     };

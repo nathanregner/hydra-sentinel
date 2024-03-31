@@ -8,17 +8,15 @@ use crate::{
 };
 use anyhow::Context;
 use axum::{routing::get, Router};
-use figment::{
-    providers::{Env, Format, Toml},
-    Figment,
-};
+
+use hydra_sentinel::shutdown_signal;
 use listenfd::ListenFd;
 use secrecy::SecretString;
 use std::{future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::{net::TcpListener, signal};
+use tokio::{net::TcpListener};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
 
 mod config;
 mod error;
@@ -29,29 +27,7 @@ mod model;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(
-            EnvFilter::builder()
-                .with_default_directive("hydra_sentinel_server=DEBUG".parse()?)
-                .from_env()
-                .unwrap(),
-        )
-        .init();
-
-    let figment = std::env::args()
-        .skip(1)
-        .next()
-        .map(|path| {
-            tracing::info!("loading config from {}", path);
-            let path = std::path::Path::new(&path);
-            Figment::from(Toml::file(path))
-        })
-        .unwrap_or_default();
-
-    let config = figment
-        .merge(Env::prefixed("HYDRA_SENTINEL_"))
-        .extract::<Config>()?;
+    let config = hydra_sentinel::init::<Config>()?;
 
     // TODO: Optional; disable webhooks without
     let github_webhook_secret = std::fs::read_to_string(&config.github_webhook_secret_file)
@@ -112,28 +88,4 @@ async fn main() -> anyhow::Result<()> {
         r = watch_builders => { r?; },
     };
     Ok(())
-}
-
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
 }

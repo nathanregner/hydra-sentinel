@@ -58,7 +58,7 @@ impl fmt::Display for NixMachine {
             .map(|s| s.as_str())
             .collect::<Vec<_>>()
             .join(",");
-        f.write_str(if features.len() > 0 { &features } else { "-" })?;
+        f.write_str(if !features.is_empty() { &features } else { "-" })?;
         f.write_char(' ')?;
 
         let features = mandatory_features
@@ -66,7 +66,7 @@ impl fmt::Display for NixMachine {
             .map(|s| s.as_str())
             .collect::<Vec<_>>()
             .join(",");
-        f.write_str(if features.len() > 0 { &features } else { "-" })?;
+        f.write_str(if !features.is_empty() { &features } else { "-" })?;
         Ok(())
     }
 }
