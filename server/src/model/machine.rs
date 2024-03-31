@@ -5,7 +5,8 @@ use std::{
     fmt::{self, Write},
 };
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct NixMachine {
     pub ssh_user: Option<String>,
     pub hostname: String,
@@ -13,7 +14,7 @@ pub struct NixMachine {
     pub max_jobs: Option<u32>,
     pub speed_factor: Option<u32>,
     #[serde(default)]
-    pub features: HashSet<String>,
+    pub supported_features: HashSet<String>,
     #[serde(default)]
     pub mandatory_features: HashSet<String>,
     /// Optional MAC address to trigger wake-on-lan
@@ -28,7 +29,7 @@ impl fmt::Display for NixMachine {
             system,
             max_jobs,
             speed_factor,
-            features,
+            supported_features: features,
             mandatory_features,
             mac_address: _,
         } = &self;

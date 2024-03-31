@@ -94,8 +94,7 @@ in {
                     '';
                   };
                   system = mkOption {
-                    type = types.nullOr types.str;
-                    default = null;
+                    type = types.str;
                     example = "x86_64-linux";
                     description = lib.mdDoc ''
                       The system type the build machine can execute derivations on.
@@ -155,6 +154,11 @@ in {
         };
         default = { };
       };
+
+      extraSettings = lib.mkOption {
+        type = types.submodule { freeformType = toml.type; };
+        default = { };
+      };
     };
 
   config = lib.mkIf cfg.enable {
@@ -183,9 +187,10 @@ in {
       after = [ "hydra-server.service" "hydra-server.service" ];
       serviceConfig = let
         confFile = toml.generate "config.toml"
-          ((lib.filterAttrs (_: v: v != null) cfg.settings) // {
-            listen_addr = "${cfg.listenHost}:${toString cfg.listenPort}";
-          });
+          ((lib.filterAttrs (_: v: v != null)
+            (cfg.extraSettings // cfg.settings)) // {
+              listen_addr = "${cfg.listenHost}:${toString cfg.listenPort}";
+            });
       in {
         ExecStart = "${cfg.package}/bin/hydra-sentinel-server ${confFile}";
         User = "hydra-sentinel-server";

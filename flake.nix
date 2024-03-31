@@ -94,6 +94,12 @@
                 allowed_ips = [ "192.168.0.0/16" ];
                 github_webhook_secret_file =
                   pkgs.writeText "github_webhook_secret_file" "hocus pocus";
+                build_machines = [{
+                  hostname = "client";
+                  system = "x86-64-linux";
+                  supportedFeatures =
+                    [ "nixos-test" "benchmark" "big-parallel" ];
+                }];
               };
             };
             networking.firewall.allowedTCPPorts =

@@ -1,15 +1,18 @@
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
-use axum::response::IntoResponse;
+use axum::response::{AppendHeaders, IntoResponse};
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use hydra_sentinel_protocol::SentinelMessage;
+use reqwest::StatusCode;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use super::store::Store;
+use crate::error::AppError;
+
+use super::store::{BuilderHandle, Store};
 
 #[derive(Deserialize)]
 pub struct Params {
@@ -24,9 +27,15 @@ pub struct Params {
 pub async fn connect(
     ws: WebSocketUpgrade,
     State(store): State<Arc<Store>>,
-    Query(Params { hostname: hostname }): Query<Params>,
+    Query(Params { hostname }): Query<Params>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
+    let Some(handle) = store.connect(&hostname, Instant::now())? else {
+        return Err(AppError::from((
+            StatusCode::BAD_REQUEST,
+            format!("unknown hostname: {hostname}"),
+        )));
+    };
     // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
     //     user_agent.to_string()
     // } else {
@@ -36,26 +45,29 @@ pub async fn connect(
     tracing::info!("{hostname:?}@{addr} connected");
     // finalize the upgrade process by returning upgrade callback.
     // we can customize the callback by sending additional info such as address.
-    ws.on_upgrade(move |socket| async move {
-        let _ = handle_socket(store, hostname, socket, addr).await;
-    })
+    Ok(ws.on_upgrade(move |socket| async move {
+        match handle_socket(store, &hostname, addr, socket, handle).await {
+            Ok(()) => tracing::info!("{hostname:?}@{addr} connected"),
+            Err(err) => tracing::error!(?err, "{hostname:?}@{addr} disconnected"),
+        }
+    }))
 }
 
-/// Actual websocket statemachine (one will be spawned per connection)
 #[tracing::instrument(skip_all, fields(%hostname, %who))]
 async fn handle_socket(
     store: Arc<Store>,
-    hostname: String,
-    socket: WebSocket,
+    hostname: &str,
+    // TODO: Get rid of these 2 args
     who: SocketAddr,
+    socket: WebSocket,
+    handle: BuilderHandle,
 ) -> anyhow::Result<()> {
+    let store = store.clone();
     let (mut sender, mut receiver) = socket.split();
     sender.send(Message::Ping(vec![])).await?;
 
     // TODO: throttle
-    let store = store.clone();
     let send_task = async move {
-        let handle = store.connect(&hostname, Instant::now())?;
         let mut sub = store.subscribe();
         loop {
             let wanted = handle.wanted();
@@ -76,8 +88,9 @@ async fn handle_socket(
     };
 
     let recv_task = async move {
+        // TODO: update last seen
         while let Some(Ok(msg)) = receiver.next().await {
-            tracing::trace!("received message from {who}");
+            tracing::trace!("received message from {hostname}");
         }
     };
 

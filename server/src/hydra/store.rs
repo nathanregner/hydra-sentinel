@@ -43,13 +43,13 @@ impl Store {
         self.changed.subscribe()
     }
 
-    pub fn connect<'s>(
-        &'s self,
+    pub fn connect(
+        self: &Arc<Self>,
         hostname: &str,
         now: Instant,
-    ) -> anyhow::Result<BuilderHandle<'s>> {
-        let Some(builder) = self.builders.get(hostname) else {
-            anyhow::bail!("Unknown host: {hostname}");
+    ) -> anyhow::Result<Option<BuilderHandle>> {
+        let Some(builder) = self.builders.get(hostname).cloned() else {
+            return Ok(None);
         };
 
         let mut last_seen = self.last_seen.lock().unwrap();
@@ -69,10 +69,10 @@ impl Store {
         } else {
             anyhow::bail!("{hostname} already connected");
         }
-        Ok(BuilderHandle {
-            store: self,
+        Ok(Some(BuilderHandle {
+            store: self.clone(),
             builder,
-        })
+        }))
     }
 
     fn disconnect(&self, hostname: &str) {
@@ -147,19 +147,19 @@ impl Store {
     }
 }
 
-pub struct BuilderHandle<'s> {
-    store: &'s Store,
-    builder: &'s NixMachine,
+pub struct BuilderHandle {
+    store: Arc<Store>,
+    builder: NixMachine,
 }
 
-impl<'s> BuilderHandle<'s> {
+impl BuilderHandle {
     pub fn wanted(&self) -> bool {
         let current = self.store.queued_systems.lock().unwrap();
         current.contains(&self.builder.system)
     }
 }
 
-impl<'s> Drop for BuilderHandle<'s> {
+impl Drop for BuilderHandle {
     fn drop(&mut self) {
         self.store.disconnect(&self.builder.hostname)
     }
@@ -269,19 +269,19 @@ mod tests {
 
     #[test]
     fn subscribe() {
-        let store = Store::new(
+        let store = Arc::new(Store::new(
             Duration::from_secs(60),
             vec![NixMachine {
                 ssh_user: None,
                 hostname: "bogus".into(),
                 system: System::X86_64Linux,
-                features: Default::default(),
+                supported_features: Default::default(),
                 mandatory_features: Default::default(),
                 max_jobs: None,
                 speed_factor: None,
                 mac_address: None,
             }],
-        );
+        ));
 
         let mut sub = store.subscribe();
         assert!(!sub.has_changed().unwrap());
