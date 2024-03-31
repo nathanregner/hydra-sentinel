@@ -1,0 +1,18 @@
+
+# 2024-03-30 21:58:35.709464
++start_all
+
+# 2024-03-30 22:52:56.216298
++run_tests
+
+# 2024-03-30 22:54:21.069415
++machine
+
+# 2024-03-30 22:55:26.168789
++machine.wait_for_unit
+
+# 2024-03-30 22:55:31.138540
++machine.wait_for_unit('hydra-server.service')
+
+# 2024-03-30 22:56:20.287787
++machine.wait_for_unit('hydra-server.service', 30)

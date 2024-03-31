@@ -9,7 +9,7 @@
   };
 
   outputs = { self, nixpkgs, crane, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         inherit (nixpkgs) lib;
         pkgs = nixpkgs.legacyPackages.${system};
@@ -71,5 +71,40 @@
               (pkgs.callPackage ./patches/apple-bindgen { }));
           };
         };
-      });
+
+        checks.vm = pkgs.testers.runNixOSTest {
+          name = "client-server-connect";
+
+          nodes.server = { config, ... }: {
+            imports = [ self.outputs.nixosModules.server ];
+            services.hydra = {
+              enable = true;
+              buildMachinesFiles = [
+                config.services.hydra-sentinel-server.settings.hydraMachinesFile
+              ];
+              hydraURL =
+                "http://localhost:${toString config.services.hydra.port}";
+              notificationSender = "";
+            };
+            services.hydra-sentinel-server.enable = true;
+          };
+
+          testScript = ''
+            machine.start()
+
+            machine.wait_for_unit("hydra-server.service")
+            # machine.wait_until_succeeds("curl http://localhost:9000/api/app/about", timeout=30)
+          '';
+        };
+
+      })) // {
+        overlays.default = _: prev: {
+          hydra-sentinel-client = self.packages.${prev.system}.client;
+          hydra-sentinel-server = self.packages.${prev.system}.server;
+        };
+
+        nixosModules = {
+          server = import ./nix/modules/server.nix { inherit (self) packages; };
+        };
+      };
 }
