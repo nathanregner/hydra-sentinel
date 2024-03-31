@@ -1118,36 +1118,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hydra-sentinel-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum-extra",
- "figment",
- "figment_file_provider_adapter",
- "futures-util",
- "hex",
- "hmac",
- "humantime-serde",
- "ipnet",
- "listenfd",
- "reqwest",
- "secrecy",
- "sentinel-protocol",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "wake-on-lan",
-]
-
-[[package]]
 name = "hyper"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2112,6 +2082,36 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "sentinel-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-extra",
+ "figment",
+ "figment_file_provider_adapter",
+ "futures-util",
+ "hex",
+ "hmac",
+ "humantime-serde",
+ "ipnet",
+ "listenfd",
+ "reqwest",
+ "secrecy",
+ "sentinel-protocol",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "wake-on-lan",
 ]
 
 [[package]]

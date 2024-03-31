@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(FileAdapter::wrap(Env::prefixed("HYDRA_")))
         .extract::<Config>()?;
 
-    let hydra_client = HydraClient::new(config.hydra_url);
+    let hydra_client = HydraClient::new(config.hydra_base_url);
 
     // build our application with some routes
     let store = Arc::new(Store::new(config.builder_timeout, config.builders));
@@ -58,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/ws",
             get(hydra::websocket::connect).route_layer(axum::middleware::from_fn_with_state(
-                config.allowed_ip_ranges,
+                config.allowed_ips,
                 allowed_ips,
             )),
         )

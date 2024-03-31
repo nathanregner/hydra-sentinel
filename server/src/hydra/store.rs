@@ -1,4 +1,4 @@
-use crate::model::{Builder, MacAddress, System};
+use crate::model::{MacAddress, NixMachine, System};
 use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
@@ -17,7 +17,7 @@ use tokio::{
 use super::client::HydraClient;
 
 pub struct Store {
-    builders: HashMap<String, Builder>,
+    builders: HashMap<String, NixMachine>,
     last_seen: Mutex<HashMap<String, Instant>>,
     queued_systems: Mutex<HashSet<System>>,
     stale_after: Duration,
@@ -25,7 +25,7 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(stale_after: Duration, builders: impl IntoIterator<Item = Builder>) -> Self {
+    pub fn new(stale_after: Duration, builders: impl IntoIterator<Item = NixMachine>) -> Self {
         let (changed, _) = channel(());
         Store {
             builders: builders
@@ -87,7 +87,7 @@ impl Store {
         }
     }
 
-    pub fn get_connected(&self) -> Vec<&Builder> {
+    pub fn get_connected(&self) -> Vec<&NixMachine> {
         let mut last_seen = self.last_seen.lock().unwrap();
 
         let mut builders = Vec::new();
@@ -149,7 +149,7 @@ impl Store {
 
 pub struct BuilderHandle<'s> {
     store: &'s Store,
-    builder: &'s Builder,
+    builder: &'s NixMachine,
 }
 
 impl<'s> BuilderHandle<'s> {
@@ -271,7 +271,7 @@ mod tests {
     fn subscribe() {
         let store = Store::new(
             Duration::from_secs(60),
-            vec![Builder {
+            vec![NixMachine {
                 ssh_user: None,
                 host_name: "bogus".into(),
                 system: System::X86_64Linux,

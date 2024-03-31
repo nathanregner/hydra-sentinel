@@ -5,31 +5,31 @@ use std::{
     fmt::{self, Write},
 };
 
-#[derive(Deserialize)]
-pub struct Builder {
+#[derive(Deserialize, Debug)]
+pub struct NixMachine {
     pub ssh_user: Option<String>,
     pub host_name: String,
     pub system: System,
+    pub max_jobs: Option<u32>,
+    pub speed_factor: Option<u32>,
     #[serde(default)]
     pub features: HashSet<String>,
     #[serde(default)]
     pub mandatory_features: HashSet<String>,
-    pub max_jobs: Option<u32>,
-    pub speed_factor: Option<u32>,
     /// Optional MAC address to trigger wake-on-lan
     pub mac_address: Option<MacAddress>,
 }
 
-impl fmt::Display for Builder {
+impl fmt::Display for NixMachine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Builder {
+        let NixMachine {
             ssh_user,
             host_name,
             system,
-            features,
-            mandatory_features,
             max_jobs,
             speed_factor,
+            features,
+            mandatory_features,
             mac_address: _,
         } = &self;
 
