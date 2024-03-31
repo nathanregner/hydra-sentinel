@@ -63,7 +63,7 @@ impl Store {
 
         drop(last_seen);
 
-        if changed {
+        if dbg!(changed) {
             tracing::debug!("builder connected");
             let _ = self.changed.send(());
         } else {
@@ -286,12 +286,12 @@ mod tests {
         let mut sub = store.subscribe();
         assert!(!sub.has_changed().unwrap());
 
-        store.connect("bogus", Instant::now());
+        let handle = store.connect("bogus", Instant::now());
         assert!(sub.has_changed().unwrap());
         sub.mark_unchanged();
 
-        store.disconnect("bogus");
+        assert!(!sub.has_changed().unwrap());
+        drop(handle);
         assert!(sub.has_changed().unwrap());
-        sub.mark_unchanged();
     }
 }

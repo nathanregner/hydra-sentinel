@@ -1,10 +1,10 @@
 [package]
-name = "sentinel-server"
+name = "hydra-sentinel-server"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sentinel-protocol.path = "../protocol/"
+hydra-sentinel-protocol.path = "../protocol/"
 
 anyhow.workspace = true
 axum = { workspace = true, features = ["ws", "http2", "macros"] }

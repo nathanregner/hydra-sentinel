@@ -3,7 +3,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use sentinel_protocol::SentinelMessage;
+use hydra_sentinel_protocol::SentinelMessage;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;

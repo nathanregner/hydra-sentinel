@@ -1,7 +1,7 @@
 use backon::{ExponentialBuilder, Retryable};
 use figment::{providers::Env, Figment};
 use futures_util::{SinkExt, StreamExt};
-use sentinel_protocol::SentinelMessage;
+use hydra_sentinel_protocol::SentinelMessage;
 use serde::Deserialize;
 use std::time::Duration;
 use tokio::signal;

@@ -2,45 +2,73 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, crane, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
         inherit (nixpkgs) lib;
-      in rec {
-        packages.default = pkgs.callPackage ({ lib, rustPlatform, pkg-config
-          , openssl, darwin, stdenv, fetchFromGitHub, fetchgit, cargo-typify
-          , clang }:
-          rustPlatform.buildRustPackage {
-            pname = "hydra-hooks";
-            version = "1.0.0";
+        pkgs = nixpkgs.legacyPackages.${system};
+        craneLib = crane.lib.${system};
 
-            # TODO
-            # src = lib.sources.sourceFilesBySuffices (lib.cleanSource ./.) [ ".nix" ];
-            src = lib.cleanSource ./.;
+        inherit (pkgs) stdenv openssl pkg-config darwin clang;
+        commonArgs = {
+          version = "0.0.0";
+          src = let inherit (lib) fileset;
+          in fileset.toSource {
+            root = ./.;
+            fileset = fileset.unions [
+              #
+              ./Cargo.lock
+              ./Cargo.toml
+              ./client
+              ./protocol
+              ./server
+            ];
+          };
 
-            cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs = [ pkg-config ] ++ lib.optionals stdenv.isDarwin [
+            darwin.apple_sdk.frameworks.SystemConfiguration
+            clang
+          ];
+          buildInputs = [ openssl ];
+          useNextest = true;
+        };
 
-            nativeBuildInputs = [ pkg-config ]
-              ++ lib.optionals stdenv.isDarwin [
-                darwin.apple_sdk.frameworks.SystemConfiguration
-                clang
-              ];
-            buildInputs = [ openssl ];
-          }) { };
+        cargoArtifacts =
+          craneLib.buildDepsOnly (commonArgs // { pname = "hydra-sentinel"; });
 
-        devShells.default = pkgs.mkShell {
-          buildInputs = packages.default.nativeBuildInputs
-            ++ packages.default.buildInputs
-            ++ (with pkgs; [ rustfmt cargo-watch ]);
+        client = craneLib.buildPackage (commonArgs // rec {
+          inherit cargoArtifacts;
+          pname = "hydra-sentinel-client";
+          cargoExtraArgs = "-p ${pname}";
+        });
+
+        server = craneLib.buildPackage (commonArgs // rec {
+          inherit cargoArtifacts;
+          pname = "hydra-sentinel-server";
+          cargoExtraArgs = "-p ${pname}";
+        });
+
+      in {
+        packages = { inherit client server; };
+
+        devShells.default = craneLib.devShell {
+          buildInputs = (with pkgs; [ rustfmt cargo-watch ]);
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
 
           CARGO_CONFIG = (pkgs.formats.toml { }).generate "config.toml" {
-            paths = [ (pkgs.callPackage ./patches/apple-bindgen { }) ];
+            # Janky workaround to fix duplicate SDK include paths from impure environments.
+            # Even removing darwin.apple_sdk.frameworks.SystemConfiguration from the shell
+            # doesn't seem to fix it
+            paths = (lib.optionals pkgs.stdenv.isDarwin
+              (pkgs.callPackage ./patches/apple-bindgen { }));
           };
         };
       });

@@ -46,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
     let hydra_client = HydraClient::new(config.hydra_base_url);
 
     // build our application with some routes
-    let store = Arc::new(Store::new(config.builder_timeout, config.builders));
+    let store = Arc::new(Store::new(config.heartbeat_timeout, config.build_machines));
     let app = Router::new()
         // .route("/ws", get(ws_handler))
         // logging so we can see whats going on
@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
 
     let watch = watch_job_queue(store.clone(), hydra_client);
     let wake = wake_builders(store.clone());
-    let watch_builders = generate_machines_file(store, config.machines_file);
+    let watch_builders = generate_machines_file(store, config.hydra_machines_file);
 
     tokio::select! {
         r = serve => { r?; },
