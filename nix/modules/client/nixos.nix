@@ -1,7 +1,7 @@
 self:
 { config, lib, pkgs, ... }:
 let
-  toml = pkgs.formats.toml { };
+  json = pkgs.formats.json { };
   cfg = config.services.hydra-sentinel-client;
 in {
   options.services.hydra-sentinel-client = let inherit (lib) types mkOption;
@@ -15,7 +15,7 @@ in {
 
     settings = lib.mkOption {
       type = types.submodule {
-        freeformType = toml.type;
+        freeformType = json.type;
         options = {
           server_addr = mkOption {
             type = types.str;
@@ -51,7 +51,7 @@ in {
       bindsTo = [ "network-online.target" ];
       after = [ "network-online.target" ];
       serviceConfig = let
-        confFile = toml.generate "config.toml"
+        confFile = json.generate "config.json"
           (lib.filterAttrs (_: v: v != null) cfg.settings);
       in {
         ExecStart = "${cfg.package}/bin/hydra-sentinel-client ${confFile}";

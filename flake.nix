@@ -26,7 +26,7 @@
               ./Cargo.lock
               ./Cargo.toml
               ./client
-              ./protocol
+              ./lib
               ./server
             ];
           };
@@ -58,7 +58,9 @@
         packages = { inherit client server; };
 
         devShells.default = craneLib.devShell {
-          buildInputs = (with pkgs; [ rustfmt cargo-watch ]);
+          buildInputs = (with pkgs;
+            [ rustfmt cargo-watch ] ++ commonArgs.buildInputs
+            ++ commonArgs.nativeBuildInputs);
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
@@ -96,7 +98,7 @@
                   pkgs.writeText "github_webhook_secret_file" "hocus pocus";
                 build_machines = [{
                   hostname = "client";
-                  system = "x86-64-linux";
+                  system = "x86_64-linux";
                   supportedFeatures =
                     [ "nixos-test" "benchmark" "big-parallel" ];
                 }];
@@ -120,9 +122,16 @@
           testScript = ''
             server.start()
             client.start()
+
             server.wait_for_unit("hydra-sentinel-server.service")
             client.wait_for_unit("hydra-sentinel-client.service")
-            # machine.wait_until_succeeds("curl http://localhost:9000/api/app/about", timeout=30)
+
+            server.wait_until_succeeds("wc -l /var/lib/hydra/machines | gawk '{ if (! strtonum($1) > 0) { exit 1 } }'")
+
+            expected = "ssh://client x86_64-linux 1 1 benchmark,big-parallel,nixos-test -"
+            actual = server.succeed("cat /var/lib/hydra/machines").strip()
+            print(f"got {actual!r}, expected {expected!r}")
+            assert expected == actual
           '';
         };
 

@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use super::events::PushEvent;
-use super::middleware::validate_signature;
+use super::middleware::validate_request_signature;
 use crate::error::AppError;
 use crate::hydra::client::HydraClient;
 use axum::extract::Json;
@@ -27,5 +27,8 @@ async fn webhook(
 }
 
 pub fn handler(secret: SecretString) -> axum::routing::MethodRouter<HydraClient, Infallible> {
-    post(webhook).route_layer(middleware::from_fn_with_state(secret, validate_signature))
+    post(webhook).route_layer(middleware::from_fn_with_state(
+        secret,
+        validate_request_signature,
+    ))
 }

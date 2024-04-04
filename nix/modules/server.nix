@@ -1,7 +1,7 @@
 self:
 { config, lib, pkgs, ... }:
 let
-  toml = pkgs.formats.toml { };
+  json = pkgs.formats.json { };
   hydraCfg = config.services.hydra;
   cfg = config.services.hydra-sentinel-server;
 in {
@@ -29,7 +29,7 @@ in {
 
       settings = lib.mkOption {
         type = types.submodule {
-          freeformType = toml.type;
+          freeformType = json.type;
           options = {
             github_webhook_secret_file = mkOption {
               type = types.nullOr types.path;
@@ -156,7 +156,7 @@ in {
       };
 
       extraSettings = lib.mkOption {
-        type = types.submodule { freeformType = toml.type; };
+        type = types.submodule { freeformType = json.type; };
         default = { };
       };
     };
@@ -178,7 +178,7 @@ in {
     };
 
     systemd.tmpfiles.rules = [
-      "f+ ${cfg.settings.hydra_machines_file} 0660 hydra hydra-sentinel-server -" # for dnsmasq.leases
+      "f+ ${cfg.settings.hydra_machines_file} 0660 ${config.users.users.hydra-sentinel-server.name} ${config.users.users.hydra-sentinel-server.group} -"
     ];
 
     systemd.services.hydra-sentinel-server = {
@@ -186,7 +186,7 @@ in {
       requires = [ "hydra-server.service" ];
       after = [ "hydra-server.service" "hydra-server.service" ];
       serviceConfig = let
-        confFile = toml.generate "config.toml"
+        confFile = json.generate "config.json"
           ((lib.filterAttrs (_: v: v != null)
             (cfg.extraSettings // cfg.settings)) // {
               listen_addr = "${cfg.listenHost}:${toString cfg.listenPort}";

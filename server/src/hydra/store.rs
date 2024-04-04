@@ -2,6 +2,7 @@ use crate::model::{MacAddress, NixMachine, System};
 use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
+    fs,
     net::Ipv4Addr,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -184,7 +185,7 @@ pub async fn wake_builders(store: Arc<Store>) -> anyhow::Result<Infallible> {
     }
 }
 
-pub async fn wake_all(mac_addresses: &[MacAddress]) -> anyhow::Result<()> {
+async fn wake_all(mac_addresses: &[MacAddress]) -> anyhow::Result<()> {
     let from_addr = (Ipv4Addr::new(0, 0, 0, 0), 0);
     let socket = UdpSocket::bind(from_addr).await?;
     socket.set_broadcast(true)?;
@@ -231,9 +232,17 @@ pub async fn watch_job_queue(
 #[tracing::instrument(skip_all)]
 pub async fn generate_machines_file(
     store: Arc<Store>,
-    builders_file: PathBuf,
+    machines_file: PathBuf,
 ) -> anyhow::Result<Infallible> {
-    // TODO: Validate writable before starting...
+    // fail early if possible
+    if let Err(err) = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .append(true)
+        .open(&machines_file)
+    {
+        anyhow::bail!("{:?} is not writable: {}", machines_file, err);
+    }
 
     let mut current = String::new();
     let mut sub = store.subscribe();
@@ -249,7 +258,7 @@ pub async fn generate_machines_file(
 
         if current != updated {
             current = updated;
-            File::create(&builders_file)
+            File::create(&machines_file)
                 .await?
                 .write_all(current.as_bytes())
                 .await?;

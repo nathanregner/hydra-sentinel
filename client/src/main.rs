@@ -1,14 +1,10 @@
+use crate::rate_limiter::RateLimiter;
 use backon::{ExponentialBuilder, Retryable};
-
 use futures_util::{SinkExt, StreamExt};
 use hydra_sentinel::{shutdown_signal, SentinelMessage};
 use serde::Deserialize;
 use std::time::Duration;
-
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use tracing_subscriber::{prelude::*};
-
-use crate::rate_limiter::RateLimiter;
 
 mod rate_limiter;
 

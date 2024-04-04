@@ -5,13 +5,13 @@ use axum::{
     middleware::{self},
     response::IntoResponse,
 };
-use hmac::{Hmac, Mac};
+use hmac::{digest::MacError, Hmac, Mac};
 use secrecy::{ExposeSecret, SecretString};
 use sha2::Sha256;
 
 use crate::error::AppError;
 
-pub async fn validate_signature(
+pub async fn validate_request_signature(
     State(secret): State<SecretString>,
     request: Request<Body>,
     next: middleware::Next,
@@ -39,11 +39,15 @@ fn extract_signature(headers: &HeaderMap) -> Result<Vec<u8>, AppError> {
     Ok(hex::decode(hex).map_err(|err| (StatusCode::BAD_REQUEST, format!("Invalid hex: {err}")))?)
 }
 
-fn is_valid_signature(secret: &SecretString, body: &[u8], signature: &[u8]) -> bool {
+fn validate_signature(
+    secret: &SecretString,
+    body: &[u8],
+    signature: &[u8],
+) -> Result<(), MacError> {
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.expose_secret().as_bytes())
         .expect("HMAC can take key of any size");
     mac.update(body);
-    mac.verify_slice(signature).is_ok()
+    mac.verify_slice(signature)
 }
 
 // the trick is to take the request apart, buffer the body, do what you need to do, then put
@@ -58,7 +62,7 @@ async fn do_validate_signature(
         .await
         .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
 
-    if is_valid_signature(secret, &body, &signature) {
+    if validate_signature(secret, &body, &signature).is_ok() {
         Ok(Request::from_parts(parts, Body::from(body)))
     } else {
         Err((StatusCode::BAD_REQUEST, "Invalid signature").into())
@@ -84,7 +88,7 @@ mod tests {
             "/",
             post(ok).layer(middleware::from_fn_with_state(
                 SecretString::new("It's a Secret to Everybody".to_string()),
-                super::validate_signature,
+                super::validate_request_signature,
             )),
         );
 

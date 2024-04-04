@@ -13,10 +13,9 @@ use hydra_sentinel::shutdown_signal;
 use listenfd::ListenFd;
 use secrecy::SecretString;
 use std::{future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::{net::TcpListener};
+use tokio::net::TcpListener;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
-
 
 mod config;
 mod error;
@@ -39,8 +38,6 @@ async fn main() -> anyhow::Result<()> {
     // build our application with some routes
     let store = Arc::new(Store::new(config.heartbeat_timeout, config.build_machines));
     let app = Router::new()
-        // .route("/ws", get(ws_handler))
-        // logging so we can see whats going on
         .route("/webhook", github::webhook::handler(github_webhook_secret))
         .with_state(hydra_client.clone())
         .route(

@@ -1,5 +1,5 @@
 use figment::{
-    providers::{Env, Format, Toml},
+    providers::{Env, Format, Json, Toml},
     Figment,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -39,13 +39,22 @@ where
         )
         .init();
 
-    let figment = std::env::args().nth(1)
-        .map(|path| {
-            tracing::info!("loading config from {}", path);
+    let figment = match std::env::args().nth(1) {
+        Some(path) => {
+            tracing::info!("Loading config from file {}", path);
             let path = std::path::Path::new(&path);
-            Figment::from(Toml::file(path))
-        })
-        .unwrap_or_default();
+            let ext = path.extension().and_then(|ext| ext.to_str());
+            ext.and_then(|ext| {
+                Some(match ext {
+                    "toml" => Figment::from(Toml::file(path)),
+                    "json" => Figment::from(Json::file(path)),
+                    _ => return None,
+                })
+            })
+            .ok_or_else(|| anyhow::anyhow!("Unknown config format: {path:?}"))?
+        }
+        None => Figment::default(),
+    };
 
     Ok(figment
         .merge(Env::prefixed("HYDRA_SENTINEL_"))
