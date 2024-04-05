@@ -8,7 +8,10 @@ stdenv.mkDerivation rec {
     rev = "master";
     hash = "sha256-NrF8JlO0PDOT1xMPVMMcm4kC6zQGc5UtZtBBcdiZhJY=";
   };
-  patches = [ ./0001-disable-include-path-detection.patch ];
+  patches = [
+    ./0001-disable-include-path-detection.patch
+    ./0002-use-apple_sdk-SdkSearch-instead-of-xcrun.patch
+  ];
   dontBuild = true;
   installPhase = ''
     mkdir -p $out

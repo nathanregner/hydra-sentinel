@@ -1,0 +1,16 @@
+[package]
+name = "apple-sys"
+version = "0.2.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+core-foundation = "0.9.4"
+objc = "0.2.7"
+
+[build-dependencies]
+bindgen = "0.69.4"
+
+[features]
+CoreFoundation = []
+IOKit = []

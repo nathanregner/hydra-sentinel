@@ -3,6 +3,7 @@ target/
 
 # Nix
 result
+.nixos-test-history
 
 # Devshell
 .direnv/

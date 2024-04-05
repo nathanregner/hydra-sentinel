@@ -2,22 +2,20 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    crane = {
-      url = "github:ipetkov/crane";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # crane = {
+    #   url = "github:ipetkov/crane";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
   };
 
-  outputs = { self, nixpkgs, crane, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils }:
     (flake-utils.lib.eachDefaultSystem (system:
       let
         inherit (nixpkgs) lib;
         pkgs = nixpkgs.legacyPackages.${system};
-        craneLib = crane.lib.${system};
 
-        inherit (pkgs) stdenv openssl pkg-config darwin clang;
         commonArgs = {
-          version = "0.0.0";
+          version = "0.1.0";
           src = let inherit (lib) fileset;
           in fileset.toSource {
             root = ./.;
@@ -28,38 +26,75 @@
               ./client
               ./lib
               ./server
+              ./vendor
             ];
           };
 
-          nativeBuildInputs = [ pkg-config ] ++ lib.optionals stdenv.isDarwin [
-            darwin.apple_sdk.frameworks.SystemConfiguration
-            clang
+          env = lib.optionalAttrs pkgs.stdenv.isDarwin {
+            LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+            # RUST_BACKTRACE = "1";
+            # CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG = "true";
+          };
+
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+            xcbuild
+            # rustPlatform.bindgenHook
           ];
-          buildInputs = [ openssl ];
-          useNextest = true;
+          buildInputs = with pkgs;
+            [ openssl ] ++ (lib.optionals stdenv.isDarwin
+              (with darwin.apple_sdk.frameworks; [
+                CoreFoundation
+                SystemConfiguration
+                IOKit
+                libiconv
+              ]));
+
+          cargoLock.lockFile = ./Cargo.lock;
         };
 
-        cargoArtifacts =
-          craneLib.buildDepsOnly (commonArgs // { pname = "hydra-sentinel"; });
-
-        client = craneLib.buildPackage (commonArgs // rec {
-          inherit cargoArtifacts;
+        client = pkgs.rustPlatform.buildRustPackage (commonArgs // rec {
           pname = "hydra-sentinel-client";
-          cargoExtraArgs = "-p ${pname}";
+          cargoBuildFlags = [ "--package ${pname}" ];
         });
 
-        server = craneLib.buildPackage (commonArgs // rec {
-          inherit cargoArtifacts;
+        server = pkgs.rustPlatform.buildRustPackage (commonArgs // rec {
           pname = "hydra-sentinel-server";
-          cargoExtraArgs = "-p ${pname}";
+          cargoBuildFlags = [ "--package ${pname}" ];
         });
 
       in {
-        packages = { inherit client server; };
+        packages = {
+          inherit client server;
+          test = pkgs.stdenv.mkDerivation ({
+            pname = "hydra-sentinel-client";
+            version = "1.1.2";
 
-        devShells.default = craneLib.devShell {
+            src = ./.;
+
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+              rustPlatform.bindgenHook
+              xcbuild
+            ];
+            buildInputs = with pkgs;
+              [ openssl ] ++ (lib.optionals stdenv.isDarwin
+                (with darwin.apple_sdk.frameworks; [
+                  clang
+                  SystemConfiguration
+                  IOKit
+                  libiconv
+                ]));
+            buildPhase = ''
+              xcrun --sdk macosx --show-sdk-path > $out
+            '';
+          });
+
+        };
+
+        devShells.default = pkgs.mkShell {
           buildInputs = (with pkgs;
-            [ rustfmt cargo-watch ] ++ commonArgs.buildInputs
+            [ cargo rustfmt cargo-watch rust-bindgen ] ++ commonArgs.buildInputs
             ++ commonArgs.nativeBuildInputs);
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
@@ -69,8 +104,8 @@
             # Janky workaround to fix duplicate SDK include paths from impure environments.
             # Even removing darwin.apple_sdk.frameworks.SystemConfiguration from the shell
             # doesn't seem to fix it
-            paths = (lib.optionals pkgs.stdenv.isDarwin
-              (pkgs.callPackage ./patches/apple-bindgen { }));
+            # paths = (lib.optional pkgs.stdenv.isDarwin
+            #   (pkgs.callPackage ./patches/apple-bindgen { }));
           };
         };
 
@@ -145,6 +180,11 @@
           server = import ./nix/modules/server.nix { inherit (self) packages; };
           client =
             import ./nix/modules/client/nixos.nix { inherit (self) packages; };
+        };
+
+        darwinModules = {
+          client =
+            import ./nix/modules/client/darwin.nix { inherit (self) packages; };
         };
       };
 }

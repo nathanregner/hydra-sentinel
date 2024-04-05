@@ -1,5 +1,7 @@
 [workspace]
 members = [ "client", "lib", "server" ]
+exclude = [ "vendor" ]
+resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0.81"
@@ -27,3 +29,5 @@ tower-http = "0.5.2"
 url = "2.5.0"
 wake-on-lan = "0.2.0"
 
+[patch.crates-io]
+apple-sys = { path = "./vendor/apple-sys" }
