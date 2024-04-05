@@ -23,12 +23,9 @@
 
             cargoLock.lockFile = ./Cargo.lock;
 
-            nativeBuildInputs = [ pkg-config ]
-              ++ lib.optionals stdenv.isDarwin [
-                darwin.apple_sdk.frameworks.SystemConfiguration
-                clang
-              ];
-            buildInputs = [ openssl ];
+            nativeBuildInputs = [ pkg-config ];
+            buildInputs = [ openssl ] ++ lib.optionals stdenv.isDarwin
+              [ darwin.apple_sdk.frameworks.SystemConfiguration ];
           }) { };
 
         devShells.default = pkgs.mkShell {
