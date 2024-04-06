@@ -127,7 +127,7 @@
                   pkgs.writeText "github_webhook_secret_file" "hocus pocus";
                 build_machines = [{
                   hostName = "client";
-                  system = "x86_64-linux";
+                  systems = [ "x86_64-linux" ];
                   supportedFeatures =
                     [ "nixos-test" "benchmark" "big-parallel" ];
                 }];
@@ -157,7 +157,7 @@
 
             server.wait_until_succeeds("wc -l /var/lib/hydra/machines | gawk '{ if (! strtonum($1) > 0) { exit 1 } }'")
 
-            expected = "ssh://client x86_64-linux 1 1 benchmark,big-parallel,nixos-test -"
+            expected = "ssh://client x86_64-linux - 1 1 benchmark,big-parallel,nixos-test - -"
             actual = server.succeed("cat /var/lib/hydra/machines").strip()
             print(f"got {actual!r}, expected {expected!r}")
             assert expected == actual

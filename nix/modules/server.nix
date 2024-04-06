@@ -75,6 +75,23 @@ in {
             build_machines = mkOption {
               type = types.listOf (types.submodule {
                 options = {
+                  hostName = mkOption {
+                    type = types.str;
+                    example = "nixbuilder.example.org";
+                    description = lib.mdDoc ''
+                      The hostname of the build machine.
+                    '';
+                  };
+                  systems = mkOption {
+                    type = types.listOf types.str;
+                    example = [ "x86_64-linux" "aarch64-linux" ];
+                    description = lib.mdDoc ''
+                      The system types the build machine can execute derivations on.
+                      Either this attribute or {var}`system` must be
+                      present, where {var}`system` takes precedence if
+                      both are set.
+                    '';
+                  };
                   sshUser = mkOption {
                     type = types.nullOr types.str;
                     default = null;
@@ -86,21 +103,18 @@ in {
                       {option}`nix.settings.trusted-users`.
                     '';
                   };
-                  hostName = mkOption {
-                    type = types.str;
-                    example = "nixbuilder.example.org";
+                  sshKey = mkOption {
+                    type = types.nullOr types.str;
+                    default = null;
+                    example = "/root/.ssh/id_buildhost_builduser";
                     description = lib.mdDoc ''
-                      The hostname of the build machine.
-                    '';
-                  };
-                  system = mkOption {
-                    type = types.str;
-                    example = "x86_64-linux";
-                    description = lib.mdDoc ''
-                      The system type the build machine can execute derivations on.
-                      Either this attribute or {var}`systems` must be
-                      present, where {var}`system` takes precedence if
-                      both are set.
+                      The path to the SSH private key with which to authenticate on
+                      the build machine. The private key must not have a passphrase.
+                      If null, the building user (root on NixOS machines) must have an
+                      appropriate ssh configuration to log in non-interactively.
+
+                      Note that for security reasons, this path must point to a file
+                      in the local filesystem, *not* to the nix store.
                     '';
                   };
                   maxJobs = mkOption {
@@ -143,12 +157,13 @@ in {
                       list.
                     '';
                   };
-                  macAddress = mkOption {
-                    type = types.str;
+                  publicHostKey = mkOption {
+                    type = types.nullOr types.str;
                     default = null;
-                    example = "00:11:22:33:44:55";
                     description = lib.mdDoc ''
-                      If present, wake-on-lan will be attempted for this machine when matching jobs are scheduled.
+                      The (base64-encoded) public host key of this builder. The field
+                      is calculated via {command}`base64 -w0 /etc/ssh/ssh_host_type_key.pub`.
+                      If null, SSH will use its regular known-hosts file when connecting.
                     '';
                   };
                 };
