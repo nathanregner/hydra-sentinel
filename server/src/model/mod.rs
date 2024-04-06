@@ -1,5 +1,5 @@
+mod build_machine;
 mod mac_address;
-mod nix_machine;
 mod system;
 
-pub use self::{mac_address::MacAddress, nix_machine::NixMachine, system::System};
+pub use self::{build_machine::BuildMachine, mac_address::MacAddress, system::System};

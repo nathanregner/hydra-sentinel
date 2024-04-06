@@ -1,4 +1,4 @@
-use crate::model::NixMachine;
+use crate::model::BuildMachine;
 use ipnet::IpNet;
 use serde::Deserialize;
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
@@ -30,5 +30,5 @@ pub struct Config {
     /// List of known machine specs
     /// TODO: What about dynamically registered machines?
     #[serde(default)]
-    pub build_machines: Vec<NixMachine>,
+    pub build_machines: Vec<BuildMachine>,
 }

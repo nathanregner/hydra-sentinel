@@ -1,4 +1,8 @@
-use crate::model::{MacAddress, NixMachine, System};
+use crate::{
+    error::AppError,
+    model::{BuildMachine, MacAddress, System},
+};
+use reqwest::StatusCode;
 use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
@@ -17,8 +21,9 @@ use tokio::{
 
 use super::client::HydraClient;
 
+// TODO: Get rid of mutexes
 pub struct Store {
-    builders: HashMap<String, NixMachine>,
+    builders: HashMap<String, BuildMachine>,
     last_seen: Mutex<HashMap<String, Instant>>,
     queued_systems: Mutex<HashSet<System>>,
     stale_after: Duration,
@@ -26,7 +31,7 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(stale_after: Duration, builders: impl IntoIterator<Item = NixMachine>) -> Self {
+    pub fn new(stale_after: Duration, builders: impl IntoIterator<Item = BuildMachine>) -> Self {
         let (changed, _) = channel(());
         Store {
             builders: builders
@@ -44,37 +49,37 @@ impl Store {
         self.changed.subscribe()
     }
 
+    // TODO: Cleanup error handling
     pub fn connect(
         self: &Arc<Self>,
         host_name: &str,
         now: Instant,
-    ) -> anyhow::Result<Option<BuilderHandle>> {
+    ) -> Result<BuilderHandle, AppError> {
         let Some(builder) = self.builders.get(host_name).cloned() else {
-            return Ok(None);
+            return Err(AppError::from((
+                StatusCode::BAD_REQUEST,
+                "Unknown builder: {host_name}",
+            )));
         };
 
         let mut last_seen = self.last_seen.lock().unwrap();
 
-        // TODO: separate poll
-        // TODO: error on duplicate connection?
-        let changed = !last_seen.contains_key(host_name);
-        last_seen
-            .entry(host_name.to_string())
-            .and_modify(|prev| *prev = (*prev).max(now))
-            .or_insert(now);
+        if last_seen.contains_key(host_name) {
+            return Err(AppError::from((
+                StatusCode::BAD_REQUEST,
+                "{host_name} already connected",
+            )));
+        }
+        last_seen.insert(host_name.to_string(), now);
 
         drop(last_seen);
 
-        if dbg!(changed) {
-            tracing::debug!("builder connected");
-            let _ = self.changed.send(());
-        } else {
-            anyhow::bail!("{host_name} already connected");
-        }
-        Ok(Some(BuilderHandle {
+        let _ = self.changed.send(());
+
+        Ok(BuilderHandle {
             store: self.clone(),
             builder,
-        }))
+        })
     }
 
     fn disconnect(&self, host_name: &str) {
@@ -89,7 +94,7 @@ impl Store {
         }
     }
 
-    pub fn get_connected(&self) -> Vec<&NixMachine> {
+    pub fn get_connected(&self) -> Vec<&BuildMachine> {
         let mut last_seen = self.last_seen.lock().unwrap();
 
         let mut builders = Vec::new();
@@ -106,11 +111,6 @@ impl Store {
         }
 
         builders
-    }
-
-    // TODO: cleanup
-    pub fn expire_stale(&self) {
-        self.get_connected();
     }
 
     pub fn update_queued(&self, queued: impl IntoIterator<Item = System>) {
@@ -138,7 +138,10 @@ impl Store {
             .filter_map(|builder| {
                 let mac_address = builder.mac_address?;
                 if !connected.contains(&*builder.host_name)
-                    && queued_systems.contains(&builder.system)
+                    && queued_systems
+                        .intersection(&builder.systems)
+                        .next()
+                        .is_some()
                 {
                     Some(mac_address)
                 } else {
@@ -151,13 +154,25 @@ impl Store {
 
 pub struct BuilderHandle {
     store: Arc<Store>,
-    builder: NixMachine,
+    builder: BuildMachine,
 }
 
 impl BuilderHandle {
     pub fn wanted(&self) -> bool {
-        let current = self.store.queued_systems.lock().unwrap();
-        current.contains(&self.builder.system)
+        let queued = self.store.queued_systems.lock().unwrap();
+        queued.intersection(&self.builder.systems).next().is_some()
+    }
+
+    pub fn heartbeat(&self, now: Instant) -> Result<(), AppError> {
+        let mut last_seen = self.store.last_seen.lock().unwrap();
+        let Some(at) = last_seen.get_mut(&self.builder.host_name) else {
+            return Err(AppError::from((
+                StatusCode::BAD_REQUEST,
+                "{host_name} connection stale",
+            )));
+        };
+        *at = now;
+        Ok(())
     }
 }
 
@@ -281,15 +296,17 @@ mod tests {
     fn subscribe() {
         let store = Arc::new(Store::new(
             Duration::from_secs(60),
-            vec![NixMachine {
+            vec![BuildMachine {
                 ssh_user: None,
                 host_name: "bogus".into(),
-                system: System::X86_64Linux,
+                ssh_key: None,
+                systems: [System::X86_64Linux].into(),
                 supported_features: Default::default(),
                 mandatory_features: Default::default(),
                 max_jobs: None,
                 speed_factor: None,
                 mac_address: None,
+                public_host_key: None,
             }],
         ));
 

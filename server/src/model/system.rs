@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
+/// A [Nix system type](https://nixos.org/manual/nix/stable/contributing/hacking#system-type)
 #[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum System {
     #[serde(rename = "x86_64-linux")]

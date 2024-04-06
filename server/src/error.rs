@@ -5,6 +5,7 @@ use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
 };
+use tokio::sync::watch::error::RecvError;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -24,6 +25,18 @@ where
 impl From<anyhow::Error> for AppError {
     fn from(e: anyhow::Error) -> Self {
         AppError::InternalServerError(e)
+    }
+}
+
+impl From<RecvError> for AppError {
+    fn from(e: RecvError) -> Self {
+        AppError::InternalServerError(e.into())
+    }
+}
+
+impl From<axum::Error> for AppError {
+    fn from(e: axum::Error) -> Self {
+        AppError::InternalServerError(e.into())
     }
 }
 
