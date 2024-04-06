@@ -224,6 +224,7 @@ pub async fn wake(socket: &UdpSocket, mac_address: MacAddress) {
     }
 }
 
+#[tracing::instrument(skip_all)]
 pub async fn watch_job_queue(
     store: Arc<Store>,
     client: HydraClient,

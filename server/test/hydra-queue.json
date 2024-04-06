@@ -1,0 +1,75 @@
+[
+  {
+    "project": "nix-config",
+    "job": "nixosConfigurations.sunlu-s8-0",
+    "timestamp": 1712425681,
+    "finished": 0,
+    "buildoutputs": {
+      "out": {
+        "path": "/nix/store/l0dcq0pv1dk4iwd38v91bagmq2mharzj-nixos-system-sunlu-s8-0-054d0b3-23.11.20240328.219951b"
+      }
+    },
+    "id": 199,
+    "buildstatus": 4,
+    "drvpath": null,
+    "starttime": null,
+    "buildmetrics": {},
+    "jobset": "next",
+    "buildproducts": {},
+    "priority": null,
+    "jobsetevals": [101],
+    "releasename": null,
+    "stoptime": 1712429954,
+    "nixname": "nixos-system-sunlu-s8-0-054d0b3-23.11.20240328.219951b",
+    "system": "aarch64-linux"
+  },
+  {
+    "id": 200,
+    "buildstatus": 4,
+    "buildmetrics": {},
+    "starttime": null,
+    "drvpath": null,
+    "jobset": "next",
+    "priority": null,
+    "buildproducts": {},
+    "jobsetevals": [101],
+    "stoptime": 1712429954,
+    "releasename": null,
+    "nixname": "darwin-system-23.11.20240328.219951b+darwin4.36524ad",
+    "system": "aarch64-darwin",
+    "job": "darwinConfigurations.enceladus",
+    "project": "nix-config",
+    "timestamp": 1712425681,
+    "finished": 0,
+    "buildoutputs": {
+      "out": {
+        "path": "/nix/store/ip95zal9n7rrhymaarf933g3cgd7klz2-darwin-system-23.11.20240328.219951b+darwin4.36524ad"
+      }
+    }
+  },
+  {
+    "project": "nix-config",
+    "job": "nixosConfigurations.voron",
+    "timestamp": 1712425681,
+    "finished": 0,
+    "buildoutputs": {
+      "out": {
+        "path": "/nix/store/2776lnlhi693d0624j3bb94sm1vkdvaw-nixos-system-voron-054d0b3-23.11.20240328.219951b"
+      }
+    },
+    "starttime": null,
+    "drvpath": null,
+    "buildmetrics": {},
+    "buildstatus": 4,
+    "id": 203,
+    "jobset": "next",
+    "stoptime": 1712429954,
+    "jobsetevals": [101],
+    "releasename": null,
+    "buildproducts": {},
+    "priority": null,
+    "system": "aarch64-linux",
+    "nixname": "nixos-system-voron-054d0b3-23.11.20240328.219951b"
+  }
+]
+

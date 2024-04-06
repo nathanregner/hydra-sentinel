@@ -47,9 +47,9 @@ pub struct Build {
     pub jobset: String,
     #[serde(deserialize_with = "int_to_bool")]
     pub finished: bool,
-    pub starttime: Option<String>,
-    pub stoptime: Option<String>,
-    pub buildstatus: Option<String>,
+    pub starttime: Option<u32>,
+    pub stoptime: Option<u32>,
+    pub buildstatus: Option<u32>,
     pub system: System,
 }
 
@@ -59,4 +59,19 @@ where
 {
     let s: u32 = de::Deserialize::deserialize(deserializer)?;
     Ok(s != 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialize_build() {
+        let build = serde_json::from_str::<Vec<Build>>(
+            include_str!("../../test/hydra-queue.json")
+        )
+        .unwrap();
+
+        dbg!(build);
+    }
 }
