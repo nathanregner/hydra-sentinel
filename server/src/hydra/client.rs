@@ -28,14 +28,15 @@ impl HydraClient {
         let mut url = self.base_url.join("api/push")?;
         url.query_pairs_mut()
             .append_pair("jobsets", &format!("{project}:{jobset}"));
-        self.client.put(url).send().await?;
+        self.client.put(url).send().await?.error_for_status()?;
         Ok(())
     }
 
     pub async fn get_queue(&self) -> anyhow::Result<Vec<Build>> {
         let url = self.base_url.join("queue")?;
-        let response = self.client.get(url).send().await?.json().await?;
-        Ok(response)
+        let response = self.client.get(url).send().await?.error_for_status()?;
+        let body = response.json().await?;
+        Ok(body)
     }
 }
 

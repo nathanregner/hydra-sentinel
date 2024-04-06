@@ -1,5 +1,5 @@
 use serde::{de::Visitor, Deserialize, Deserializer};
-use std::fmt::{self, Display, Write};
+use std::fmt::{self, Display};
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct MacAddress([u8; 6]);
