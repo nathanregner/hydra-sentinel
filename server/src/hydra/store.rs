@@ -6,7 +6,7 @@ use reqwest::StatusCode;
 use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
-    fs,
+    fs, iter,
     net::Ipv4Addr,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -36,7 +36,7 @@ impl Store {
         Store {
             builders: builders
                 .into_iter()
-                .map(|b| (b.host_name.clone(), b))
+                .map(|b| (b.host_name().to_string(), b))
                 .collect(),
             last_seen: Mutex::new(HashMap::new()),
             queued_systems: Mutex::new(HashSet::new()),
@@ -130,16 +130,16 @@ impl Store {
         let connected = self
             .get_connected()
             .iter()
-            .map(|b| b.host_name.as_str())
+            .map(|b| b.host_name())
             .collect::<HashSet<_>>();
 
         self.builders
             .values()
             .filter_map(|builder| {
-                let mac_address = builder.mac_address?;
-                if !connected.contains(&*builder.host_name)
+                let mac_address = builder.mac_address()?;
+                if !connected.contains(&*builder.host_name())
                     && queued_systems
-                        .intersection(&builder.systems)
+                        .intersection(&builder.systems())
                         .next()
                         .is_some()
                 {
@@ -160,12 +160,15 @@ pub struct BuilderHandle {
 impl BuilderHandle {
     pub fn wanted(&self) -> bool {
         let queued = self.store.queued_systems.lock().unwrap();
-        queued.intersection(&self.builder.systems).next().is_some()
+        queued
+            .intersection(&self.builder.systems())
+            .next()
+            .is_some()
     }
 
     pub fn heartbeat(&self, now: Instant) -> Result<(), AppError> {
         let mut last_seen = self.store.last_seen.lock().unwrap();
-        let Some(at) = last_seen.get_mut(&self.builder.host_name) else {
+        let Some(at) = last_seen.get_mut(self.builder.host_name()) else {
             return Err(AppError::from((
                 StatusCode::BAD_REQUEST,
                 "{host_name} connection stale",
@@ -178,7 +181,7 @@ impl BuilderHandle {
 
 impl Drop for BuilderHandle {
     fn drop(&mut self) {
-        self.store.disconnect(&self.builder.host_name)
+        self.store.disconnect(self.builder.host_name())
     }
 }
 
@@ -267,7 +270,8 @@ pub async fn generate_machines_file(
         let mut updated = store
             .get_connected()
             .into_iter()
-            .map(|b| format!("{}\n", b))
+            .flat_map(|builder| iter::once(&builder.spec).chain(builder.vms.iter()))
+            .map(|spec| format!("{}\n", spec))
             .collect::<Vec<_>>();
         updated.sort();
         tracing::debug!("{} connected builders", updated.len());
@@ -291,6 +295,8 @@ pub async fn generate_machines_file(
 
 #[cfg(test)]
 mod tests {
+    use crate::model::BuildMachineSpec;
+
     use super::*;
 
     #[test]
@@ -298,16 +304,19 @@ mod tests {
         let store = Arc::new(Store::new(
             Duration::from_secs(60),
             vec![BuildMachine {
-                ssh_user: None,
-                host_name: "bogus".into(),
-                ssh_key: None,
-                systems: [System::X86_64Linux].into(),
-                supported_features: Default::default(),
-                mandatory_features: Default::default(),
-                max_jobs: None,
-                speed_factor: None,
+                spec: BuildMachineSpec {
+                    ssh_user: None,
+                    host_name: "bogus".into(),
+                    ssh_key: None,
+                    systems: [System::X86_64Linux].into(),
+                    supported_features: Default::default(),
+                    mandatory_features: Default::default(),
+                    max_jobs: None,
+                    speed_factor: None,
+                    public_host_key: None,
+                },
+                vms: vec![],
                 mac_address: None,
-                public_host_key: None,
             }],
         ));
 

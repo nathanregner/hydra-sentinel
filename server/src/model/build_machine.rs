@@ -1,16 +1,19 @@
 use super::{MacAddress, System};
 use serde::Deserialize;
-use std::{collections::HashSet, fmt};
+use std::{
+    collections::{BTreeSet, HashSet},
+    fmt,
+};
 
 /// A (Nix build machine)[https://nixos.org/manual/nix/stable/command-ref/conf-file#conf-builders] specification
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct BuildMachine {
+pub struct BuildMachineSpec {
     pub ssh_user: Option<String>,
     pub host_name: String,
 
     /// A comma-separated list of [Nix system types](https://nixos.org/manual/nix/stable/contributing/hacking#system-type)
-    pub systems: HashSet<System>,
+    pub systems: BTreeSet<System>,
 
     /// A path to the SSH identity file to be used to log in to the remote machine. If omitted, SSH will use its regular identities.
     pub ssh_key: Option<String>,
@@ -25,22 +28,50 @@ pub struct BuildMachine {
     ///
     /// A machine will only be used to build a derivation if all the features in the derivation's `requiredSystemFeatures` attribute are supported by that machine.
     #[serde(default)]
-    pub supported_features: HashSet<String>,
+    pub supported_features: BTreeSet<String>,
 
     /// A comma-separated list of required [system features](https://nixos.org/manual/nix/stable/command-ref/conf-file#conf-system-features).
     ///
     /// A machine will only be used to build a derivation if all the features in the derivation's `requiredSystemFeatures` attribute are supported by that machine.
     #[serde(default)]
-    pub mandatory_features: HashSet<String>,
+    pub mandatory_features: BTreeSet<String>,
 
     // The (base64-encoded) public host key of the remote machine. If omitted, SSH will use its regular known_hosts file.
     pub public_host_key: Option<String>,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildMachine {
+    #[serde(flatten)]
+    pub spec: BuildMachineSpec,
+
+    #[serde(default)]
+    pub vms: Vec<BuildMachineSpec>,
 
     /// Optional MAC address to trigger wake-on-lan
     pub mac_address: Option<MacAddress>,
 }
 
-impl fmt::Display for BuildMachine {
+impl BuildMachine {
+    pub fn host_name(&self) -> &str {
+        self.spec.host_name.as_str()
+    }
+
+    pub fn mac_address(&self) -> Option<MacAddress> {
+        self.mac_address
+    }
+
+    pub fn systems(&self) -> HashSet<System> {
+        let mut systems = self.spec.systems.iter().copied().collect::<HashSet<_>>();
+        for vm in &self.vms {
+            systems.extend(vm.systems.iter().copied());
+        }
+        systems
+    }
+}
+
+impl fmt::Display for BuildMachineSpec {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         macro_rules! write_field {
             ($val: expr) => {
@@ -66,7 +97,7 @@ impl fmt::Display for BuildMachine {
             };
         }
 
-        let BuildMachine {
+        let BuildMachineSpec {
             ssh_user,
             host_name,
             systems,
@@ -76,7 +107,6 @@ impl fmt::Display for BuildMachine {
             supported_features,
             mandatory_features,
             public_host_key,
-            mac_address: _,
         } = &self;
 
         // hydra does not support ssh-ng; hard-coding
