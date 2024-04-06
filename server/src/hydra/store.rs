@@ -214,7 +214,7 @@ async fn wake_all(mac_addresses: &[MacAddress]) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tracing::instrument(fields(%mac_address))]
+#[tracing::instrument(skip_all, fields(%mac_address))]
 pub async fn wake(socket: &UdpSocket, mac_address: MacAddress) {
     let to_addr = (Ipv4Addr::new(255, 255, 255, 255), 9);
     let packet = wake_on_lan::MagicPacket::new(mac_address.as_ref());
