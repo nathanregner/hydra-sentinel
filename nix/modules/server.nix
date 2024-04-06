@@ -66,7 +66,7 @@ in {
 
             heartbeat_timeout = mkOption {
               type = types.str;
-              default = "30s";
+              default = "60s";
               description = mdDoc ''
                 TODO
               '';

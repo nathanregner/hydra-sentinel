@@ -29,6 +29,10 @@ in {
             The hostname of this build machine.
           '';
         };
+        heartbeat_interval = mkOption {
+          type = types.str;
+          default = "30s";
+        };
       };
     };
   };

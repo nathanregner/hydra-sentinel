@@ -12,16 +12,27 @@ mod rate_limiter;
 struct Config {
     server_addr: String,
     host_name: String,
+    #[serde(
+        with = "humantime_serde",
+        default = "Config::default_heartbeat_interval"
+    )]
+    heartbeat_interval: Duration,
+}
+
+impl Config {
+    fn default_heartbeat_interval() -> Duration {
+        Duration::from_secs(30)
+    }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = hydra_sentinel::init::<Config>(&format!("{}=DEBUG", module_path!()))?;
 
-    let rate_limiter = RateLimiter::new(Duration::from_secs(30));
+    let reconnect = RateLimiter::new(Duration::from_secs(30));
     let run = async {
         loop {
-            rate_limiter.throttle(|| run(&config)).await?;
+            reconnect.throttle(|| run(&config)).await?;
         }
         #[allow(unreachable_code)]
         anyhow::Ok(())
@@ -51,7 +62,7 @@ async fn run(config: &Config) -> anyhow::Result<()> {
     .split();
 
     let send_task = async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        let mut interval = tokio::time::interval(config.heartbeat_interval);
         loop {
             interval.tick().await;
             sender.send(Message::Ping(vec![])).await?;

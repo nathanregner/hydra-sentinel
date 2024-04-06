@@ -13,6 +13,7 @@ axum-extra = { workspace = true }
 backon = { workspace = true }
 figment = { workspace = true, features = ["toml", "env"] }
 futures-util = { workspace = true }
+humantime-serde = { workspace = true }
 keepawake = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

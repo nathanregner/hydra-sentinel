@@ -1070,6 +1070,7 @@ dependencies = [
  "backon",
  "figment",
  "futures-util",
+ "humantime-serde",
  "hydra-sentinel",
  "keepawake",
  "serde",
