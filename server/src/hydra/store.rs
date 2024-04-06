@@ -56,6 +56,7 @@ impl Store {
         let mut last_seen = self.last_seen.lock().unwrap();
 
         // TODO: separate poll
+        // TODO: error on duplicate connection?
         let changed = !last_seen.contains_key(host_name);
         last_seen
             .entry(host_name.to_string())

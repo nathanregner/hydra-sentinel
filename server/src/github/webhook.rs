@@ -10,7 +10,7 @@ use axum::middleware;
 use axum::routing::post;
 use secrecy::SecretString;
 
-#[tracing::instrument(skip(client), err)]
+#[tracing::instrument(skip_all, err)]
 async fn webhook(
     State(client): State<HydraClient>,
     event: Json<PushEvent>,
