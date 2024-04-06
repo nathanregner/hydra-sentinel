@@ -5,7 +5,13 @@ let
   cfg = config.services.hydra-sentinel-client;
 in {
   options.services.hydra-sentinel-client =
-    import ./options.nix { inherit self config pkgs lib; };
+    import ./options.nix { inherit self config pkgs lib; } // {
+      logFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        example = "/var/log/hydra-sentinel-client.log";
+      };
+    };
 
   config = lib.mkIf cfg.enable {
     users = {
@@ -18,7 +24,7 @@ in {
     in {
       serviceConfig = {
         ProgramArguments = [
-          "/bin/sh"
+          "sh"
           "-c"
           "${cfg.package}/bin/hydra-sentinel-client"
           (toString configFile)
@@ -26,6 +32,8 @@ in {
         UserName = "hydra-sentinel-client";
         RunAtLoad = true;
         KeepAlive = true;
+        StandardOutPath = cfg.logFile;
+        StandardErrorPath = cfg.logFile;
       };
     };
   };

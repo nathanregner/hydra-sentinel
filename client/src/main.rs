@@ -16,7 +16,7 @@ struct Config {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = hydra_sentinel::init::<Config>()?;
+    let config = hydra_sentinel::init::<Config>(&format!("{}=DEBUG", module_path!()))?;
 
     let rate_limiter = RateLimiter::new(Duration::from_secs(30));
     let run = async {
@@ -36,16 +36,17 @@ async fn main() -> anyhow::Result<()> {
 
 async fn run(config: &Config) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = (|| async move {
-        let (stream, response) = connect_async(format!(
+        tracing::info!("Connecting to server: {}...", config.server_addr);
+        let (stream, _response) = connect_async(format!(
             "ws://{}/ws?hostname={}",
             config.server_addr, config.hostname
         ))
         .await?;
-        tracing::info!("Connected to server: {response:?}");
+        tracing::info!("Connected");
         anyhow::Ok(stream)
     })
     .retry(&ExponentialBuilder::default().with_jitter())
-    .notify(|err, dur| tracing::error!(?err, "connect failed, retrying after {dur:?}"))
+    .notify(|err, dur| tracing::error!(?err, "Connect failed, retrying in {dur:?}"))
     .await?
     .split();
 

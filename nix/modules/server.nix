@@ -86,6 +86,7 @@ in {
                       {option}`nix.settings.trusted-users`.
                     '';
                   };
+                  # TODO: make hostName to be consisten
                   hostname = mkOption {
                     type = types.str;
                     example = "nixbuilder.example.org";
@@ -141,6 +142,14 @@ in {
                       A list of features supported by this builder. The builder will
                       be ignored for derivations that require features not in this
                       list.
+                    '';
+                  };
+                  macAddress = mkOption {
+                    type = types.str;
+                    default = null;
+                    example = "00:11:22:33:44:55";
+                    description = lib.mdDoc ''
+                      If present, wake-on-lan will be attempted for this machine when matching jobs are scheduled.
                     '';
                   };
                 };

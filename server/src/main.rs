@@ -26,7 +26,7 @@ mod model;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = hydra_sentinel::init::<Config>()?;
+    let config = hydra_sentinel::init::<Config>(&format!("{}=DEBUG", module_path!()))?;
 
     // TODO: Optional; disable webhooks without
     let github_webhook_secret = std::fs::read_to_string(&config.github_webhook_secret_file)

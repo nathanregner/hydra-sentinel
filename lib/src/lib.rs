@@ -25,7 +25,7 @@ impl From<SentinelMessage> for String {
     }
 }
 
-pub fn init<C>() -> anyhow::Result<C>
+pub fn init<C>(default_directive:&str) -> anyhow::Result<C>
 where
     C: DeserializeOwned,
 {
@@ -33,7 +33,7 @@ where
         .with(tracing_subscriber::fmt::layer())
         .with(
             EnvFilter::builder()
-                .with_default_directive("hydra_sentinel_server=DEBUG".parse()?)
+                .with_default_directive(default_directive.parse()?)
                 .from_env()
                 .unwrap(),
         )
