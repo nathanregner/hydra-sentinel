@@ -62,6 +62,7 @@ impl BuildMachine {
         self.mac_address
     }
 
+    // TODO: Separate config (this struct) from logic (store)
     pub fn systems(&self) -> HashSet<System> {
         let mut systems = self.spec.systems.iter().copied().collect::<HashSet<_>>();
         for vm in &self.vms {
