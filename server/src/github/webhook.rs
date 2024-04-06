@@ -16,13 +16,15 @@ async fn webhook(
     event: Json<PushEvent>,
 ) -> Result<(), AppError> {
     let Some(branch) = event.branch() else {
-        tracing::info!("Ignoring push");
+        tracing::info!(?event, "Ignoring push: no branch");
         return Ok(());
     };
 
     let repo = &event.repository.name;
-    tracing::info!(?event, "Handling push to {repo}/{branch}");
-    client.push(repo, branch).await?;
+    tracing::info!("Received push event from {repo}/{branch}");
+    tracing::trace!(?event);
+    let response = client.push(repo, branch).await?;
+    tracing::info!(?response);
     Ok(())
 }
 

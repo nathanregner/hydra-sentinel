@@ -1,6 +1,7 @@
 use axum::http::HeaderMap;
 use reqwest::Url;
 use serde::{de, Deserialize};
+use serde_json::Value;
 
 use crate::model::System;
 
@@ -24,12 +25,12 @@ impl HydraClient {
         }
     }
 
-    pub async fn push(&self, project: &str, jobset: &str) -> anyhow::Result<()> {
+    pub async fn push(&self, project: &str, jobset: &str) -> anyhow::Result<Value> {
         let mut url = self.base_url.join("api/push")?;
         url.query_pairs_mut()
             .append_pair("jobsets", &format!("{project}:{jobset}"));
-        self.client.put(url).send().await?.error_for_status()?;
-        Ok(())
+        let response = self.client.put(url).send().await?.error_for_status()?;
+        Ok(response.json().await?)
     }
 
     pub async fn get_queue(&self) -> anyhow::Result<Vec<Build>> {
