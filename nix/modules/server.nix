@@ -166,6 +166,14 @@ in {
                       If null, SSH will use its regular known-hosts file when connecting.
                     '';
                   };
+                  macAddress = mkOption {
+                    type = types.nullOr types.str;
+                    default = null;
+                    example = "00:11:22:33:44:55";
+                    description = lib.mdDoc ''
+                      If present, wake-on-lan will be attempted for this machine when matching jobs are scheduled.
+                    '';
+                  };
                 };
               });
               default = [ ];
