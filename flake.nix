@@ -89,20 +89,18 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = (with pkgs;
-            [ cargo rustfmt cargo-watch rust-bindgen ] ++ commonArgs.buildInputs
-            ++ commonArgs.nativeBuildInputs);
+          inherit (commonArgs) buildInputs;
+          packages = (with pkgs; [
+            cargo
+            cargo-watch
+            clippy
+            rust-bindgen
+            rustc
+            rustfmt
+          ]);
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
-
-          CARGO_CONFIG = (pkgs.formats.toml { }).generate "config.toml" {
-            # Janky workaround to fix duplicate SDK include paths from impure environments.
-            # Even removing darwin.apple_sdk.frameworks.SystemConfiguration from the shell
-            # doesn't seem to fix it
-            # paths = (lib.optional pkgs.stdenv.isDarwin
-            #   (pkgs.callPackage ./patches/apple-bindgen { }));
-          };
         };
 
         checks.vm = pkgs.testers.runNixOSTest {
