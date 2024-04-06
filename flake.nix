@@ -128,7 +128,7 @@
                 github_webhook_secret_file =
                   pkgs.writeText "github_webhook_secret_file" "hocus pocus";
                 build_machines = [{
-                  hostname = "client";
+                  hostName = "client";
                   system = "x86_64-linux";
                   supportedFeatures =
                     [ "nixos-test" "benchmark" "big-parallel" ];
@@ -144,7 +144,7 @@
             services.hydra-sentinel-client = {
               enable = true;
               settings = {
-                hostname = "client";
+                hostName = "client";
                 server_addr = "server:3001";
               };
             };

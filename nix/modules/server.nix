@@ -86,8 +86,7 @@ in {
                       {option}`nix.settings.trusted-users`.
                     '';
                   };
-                  # TODO: make hostName to be consisten
-                  hostname = mkOption {
+                  hostName = mkOption {
                     type = types.str;
                     example = "nixbuilder.example.org";
                     description = lib.mdDoc ''

@@ -31,7 +31,7 @@ impl Store {
         Store {
             builders: builders
                 .into_iter()
-                .map(|b| (b.hostname.clone(), b))
+                .map(|b| (b.host_name.clone(), b))
                 .collect(),
             last_seen: Mutex::new(HashMap::new()),
             queued_systems: Mutex::new(HashSet::new()),
@@ -46,19 +46,19 @@ impl Store {
 
     pub fn connect(
         self: &Arc<Self>,
-        hostname: &str,
+        host_name: &str,
         now: Instant,
     ) -> anyhow::Result<Option<BuilderHandle>> {
-        let Some(builder) = self.builders.get(hostname).cloned() else {
+        let Some(builder) = self.builders.get(host_name).cloned() else {
             return Ok(None);
         };
 
         let mut last_seen = self.last_seen.lock().unwrap();
 
         // TODO: separate poll
-        let changed = !last_seen.contains_key(hostname);
+        let changed = !last_seen.contains_key(host_name);
         last_seen
-            .entry(hostname.to_string())
+            .entry(host_name.to_string())
             .and_modify(|prev| *prev = (*prev).max(now))
             .or_insert(now);
 
@@ -68,7 +68,7 @@ impl Store {
             tracing::debug!("builder connected");
             let _ = self.changed.send(());
         } else {
-            anyhow::bail!("{hostname} already connected");
+            anyhow::bail!("{host_name} already connected");
         }
         Ok(Some(BuilderHandle {
             store: self.clone(),
@@ -76,10 +76,10 @@ impl Store {
         }))
     }
 
-    fn disconnect(&self, hostname: &str) {
+    fn disconnect(&self, host_name: &str) {
         let mut last_seen = self.last_seen.lock().unwrap();
 
-        let changed = last_seen.remove(hostname).is_some();
+        let changed = last_seen.remove(host_name).is_some();
         drop(last_seen);
 
         if changed {
@@ -92,12 +92,12 @@ impl Store {
         let mut last_seen = self.last_seen.lock().unwrap();
 
         let mut builders = Vec::new();
-        for (hostname, builder) in &self.builders {
-            if let Some(at) = last_seen.get(hostname) {
+        for (host_name, builder) in &self.builders {
+            if let Some(at) = last_seen.get(host_name) {
                 let elapsed = at.elapsed();
                 if elapsed > self.stale_after {
-                    tracing::info!("removing stale builder: {hostname}, not seen for {elapsed:?}");
-                    last_seen.remove(hostname);
+                    tracing::info!("removing stale builder: {host_name}, not seen for {elapsed:?}");
+                    last_seen.remove(host_name);
                 } else {
                     builders.push(builder);
                 }
@@ -129,14 +129,14 @@ impl Store {
         let connected = self
             .get_connected()
             .iter()
-            .map(|b| b.hostname.as_str())
+            .map(|b| b.host_name.as_str())
             .collect::<HashSet<_>>();
 
         self.builders
             .values()
             .filter_map(|builder| {
                 let mac_address = builder.mac_address?;
-                if !connected.contains(&*builder.hostname)
+                if !connected.contains(&*builder.host_name)
                     && queued_systems.contains(&builder.system)
                 {
                     Some(mac_address)
@@ -162,7 +162,7 @@ impl BuilderHandle {
 
 impl Drop for BuilderHandle {
     fn drop(&mut self) {
-        self.store.disconnect(&self.builder.hostname)
+        self.store.disconnect(&self.builder.host_name)
     }
 }
 
@@ -282,7 +282,7 @@ mod tests {
             Duration::from_secs(60),
             vec![NixMachine {
                 ssh_user: None,
-                hostname: "bogus".into(),
+                host_name: "bogus".into(),
                 system: System::X86_64Linux,
                 supported_features: Default::default(),
                 mandatory_features: Default::default(),

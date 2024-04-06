@@ -16,47 +16,35 @@ use super::store::{BuilderHandle, Store};
 
 #[derive(Deserialize)]
 pub struct Params {
-    hostname: String,
+    host_name: String,
 }
 
-/// The handler for the HTTP request (this gets called when the HTTP GET lands at the start
-/// of websocket negotiation). After this completes, the actual switching from HTTP to
-/// websocket protocol will occur.
-/// This is the last point where we can extract TCP/IP metadata such as IP address of the client
-/// as well as things from HTTP headers such as user-agent of the browser etc.
 pub async fn connect(
     ws: WebSocketUpgrade,
     State(store): State<Arc<Store>>,
-    Query(Params { hostname }): Query<Params>,
+    Query(Params { host_name }): Query<Params>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Result<impl IntoResponse, AppError> {
-    let Some(handle) = store.connect(&hostname, Instant::now())? else {
+    let Some(handle) = store.connect(&host_name, Instant::now())? else {
         return Err(AppError::from((
             StatusCode::BAD_REQUEST,
-            format!("unknown hostname: {hostname}"),
+            format!("unknown host_name: {host_name}"),
         )));
     };
-    // let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
-    //     user_agent.to_string()
-    // } else {
-    //     String::from("Unknown browser")
-    // };
-    // let hostname = "Unknown browser";
-    tracing::info!("{hostname:?}@{addr} connected");
-    // finalize the upgrade process by returning upgrade callback.
-    // we can customize the callback by sending additional info such as address.
+
+    tracing::info!("{host_name:?}@{addr} connected");
     Ok(ws.on_upgrade(move |socket| async move {
-        match handle_socket(store, &hostname, addr, socket, handle).await {
-            Ok(()) => tracing::info!("{hostname:?}@{addr} connected"),
-            Err(err) => tracing::error!(?err, "{hostname:?}@{addr} disconnected"),
+        match handle_socket(store, &host_name, addr, socket, handle).await {
+            Ok(()) => tracing::info!("{host_name:?}@{addr} connected"),
+            Err(err) => tracing::error!(?err, "{host_name:?}@{addr} disconnected"),
         }
     }))
 }
 
-#[tracing::instrument(skip_all, fields(%hostname, %who))]
+#[tracing::instrument(skip_all, fields(%host_name, %who))]
 async fn handle_socket(
     store: Arc<Store>,
-    hostname: &str,
+    host_name: &str,
     // TODO: Get rid of these 2 args
     who: SocketAddr,
     socket: WebSocket,
@@ -90,7 +78,7 @@ async fn handle_socket(
     let recv_task = async move {
         // TODO: update last seen
         while let Some(Ok(_msg)) = receiver.next().await {
-            tracing::trace!("received message from {hostname}");
+            tracing::trace!("received message from {host_name}");
         }
     };
 

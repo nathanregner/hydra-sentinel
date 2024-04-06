@@ -9,7 +9,7 @@ use std::{
 #[serde(rename_all = "camelCase")]
 pub struct NixMachine {
     pub ssh_user: Option<String>,
-    pub hostname: String,
+    pub host_name: String,
     pub system: System,
     pub max_jobs: Option<u32>,
     pub speed_factor: Option<u32>,
@@ -25,7 +25,7 @@ impl fmt::Display for NixMachine {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let NixMachine {
             ssh_user,
-            hostname,
+            host_name,
             system,
             max_jobs,
             speed_factor,
@@ -39,7 +39,7 @@ impl fmt::Display for NixMachine {
         if let Some(user) = &ssh_user {
             write!(f, "{user}@")?;
         }
-        write!(f, "{hostname} {system} ")?;
+        write!(f, "{host_name} {system} ")?;
 
         if let Some(max_jobs) = max_jobs {
             write!(f, "{max_jobs} ")?;

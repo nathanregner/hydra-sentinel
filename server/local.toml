@@ -10,18 +10,18 @@ allowed_ips = [
 github_webhook_secret_file = "/dev/null"
 
 [[builders]]
-hostname = "enceladus"
+hostName = "enceladus"
 system = "aarch64-darwin"
 features = ["nixos-test", "benchmark", "big-parallel"]
 mac_address = "60:3e:5f:4e:4e:bc"
 
 [[builders]]
-hostname = "m3-linux-vm"
+hostName = "m3-linux-vm"
 system = "aarch64-linux"
 features = ["nixos-test", "benchmark", "big-parallel"]
 macAddress = "60:3e:5f:4e:4e:bc"
 
 [[builders]]
-hostname = "iapetus"
+hostName = "iapetus"
 system = "x86_64-linux"
 features = ["nixos-test", "benchmark", "big-parallel"]

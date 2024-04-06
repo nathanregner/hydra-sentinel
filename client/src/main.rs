@@ -11,7 +11,7 @@ mod rate_limiter;
 #[derive(Deserialize)]
 struct Config {
     server_addr: String,
-    hostname: String,
+    host_name: String,
 }
 
 #[tokio::main]
@@ -38,8 +38,8 @@ async fn run(config: &Config) -> anyhow::Result<()> {
     let (mut sender, mut receiver) = (|| async move {
         tracing::info!("Connecting to server: {}...", config.server_addr);
         let (stream, _response) = connect_async(format!(
-            "ws://{}/ws?hostname={}",
-            config.server_addr, config.hostname
+            "ws://{}/ws?host_name={}",
+            config.server_addr, config.host_name
         ))
         .await?;
         tracing::info!("Connected");

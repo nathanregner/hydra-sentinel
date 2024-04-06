@@ -21,7 +21,7 @@ in {
             The address of the Hydra Sentinel server.
           '';
         };
-        hostname = mkOption {
+        host_name = mkOption {
           type = types.str;
           example = "rpi4";
           default = config.networking.hostName;
