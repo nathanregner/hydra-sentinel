@@ -26,7 +26,8 @@ in {
           (lib.filterAttrs (_: v: v != null) cfg.settings);
       in {
         ExecStart = "${cfg.package}/bin/hydra-sentinel-client ${confFile}";
-        User = "hydra-sentinel-client";
+        # TODO: is there any way to run this as a system-level, non-root service with DBus access?
+        # User = "hydra-sentinel-client";
         Restart = "always";
         RestartSec = 1;
         RestartSteps = 10;
