@@ -6,26 +6,24 @@ edition = "2021"
 [dependencies]
 hydra-sentinel.path = "../lib/"
 
-anyhow.workspace = true
+anyhow = { workspace = true }
 axum = { workspace = true, features = ["ws", "http2", "macros"] }
-axum-extra = { workspace = true, features = ["typed-header", "tracing"] }
-figment = { workspace = true, features = ["toml", "env"] }
 futures-util = { workspace = true }
 hex = { workspace = true }
 hmac = { workspace = true }
 humantime-serde = { workspace = true }
-ipnet = { version = "2.9.0", features = ["serde"] }
+ipnet = { workspace = true, features = ["serde"] }
 listenfd = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 secrecy = { workspace = true, features = ["serde"] }
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "fs"] }
 tower = { workspace = true, features = ["tracing", "timeout"] }
-tower-http = { features = ["trace", "timeout"], version = "0.5.2" }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tracing.workspace = true
+tower-http = { workspace = true, features = ["trace", "timeout"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 wake-on-lan = { workspace = true }
 

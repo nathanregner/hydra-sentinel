@@ -3,22 +3,17 @@ name = "hydra-sentinel-client"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 hydra-sentinel.path = "../lib/"
 
 anyhow = { workspace = true }
-axum-extra = { workspace = true }
 backon = { workspace = true }
-figment = { workspace = true, features = ["toml", "env"] }
 futures-util = { workspace = true }
 humantime-serde = { workspace = true }
 keepawake = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sha2 = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 tokio-tungstenite = { workspace = true, features = ["native-tls"] }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing = { workspace = true }

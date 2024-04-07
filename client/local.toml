@@ -1,2 +1,2 @@
-server_addr = "localhost:3000"
-host_name = "test"
+server_addr = "sagittarius:3002"
+host_name = "iapetus"

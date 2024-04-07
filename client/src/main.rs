@@ -25,7 +25,7 @@ impl Config {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let config = hydra_sentinel::init::<Config>(&format!("{}=DEBUG", module_path!()))?;
 

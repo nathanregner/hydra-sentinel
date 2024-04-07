@@ -89,7 +89,7 @@
         };
 
         devShells.default = pkgs.mkShell {
-          inherit (commonArgs) buildInputs;
+          inherit (commonArgs) nativeBuildInputs buildInputs;
           packages = (with pkgs; [
             cargo
             cargo-watch

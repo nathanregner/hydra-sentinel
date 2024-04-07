@@ -8,3 +8,5 @@ result
 # Devshell
 .direnv/
 .cargo/
+
+local.toml
