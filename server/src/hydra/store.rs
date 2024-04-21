@@ -14,7 +14,7 @@ use std::{
 };
 use tokio::{
     fs::File,
-    io::AsyncWriteExt,
+    io::{AsyncReadExt, AsyncWriteExt},
     net::UdpSocket,
     sync::watch::{channel, error::RecvError, Receiver, Sender},
 };
@@ -264,9 +264,14 @@ pub async fn generate_machines_file(
         anyhow::bail!("{:?} is not writable: {}", machines_file, err);
     }
 
-    let mut current = String::new();
     let mut sub = store.subscribe();
     loop {
+        let mut current = String::new();
+        File::open(&machines_file)
+            .await?
+            .read_to_string(&mut current)
+            .await?;
+
         let mut updated = store
             .get_connected()
             .into_iter()
