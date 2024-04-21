@@ -74,15 +74,15 @@ async fn main() -> anyhow::Result<()> {
     .with_graceful_shutdown(shutdown_signal())
     .into_future();
 
-    let watch = watch_job_queue(store.clone(), hydra_client);
-    let wake = wake_builders(store.clone());
-    let watch_builders = generate_machines_file(store, config.hydra_machines_file);
+    let watch_job_queue = watch_job_queue(store.clone(), hydra_client);
+    let wake_builders = wake_builders(store.clone());
+    let generate_machines_file = generate_machines_file(store, config.hydra_machines_file);
 
     tokio::select! {
         r = serve => { r?; },
-        r = watch => { r?; },
-        r = wake => { r?; },
-        r = watch_builders => { r?; },
+        r = watch_job_queue => { r?; },
+        r = wake_builders => { r?; },
+        r = generate_machines_file => { r?; },
     };
     Ok(())
 }
