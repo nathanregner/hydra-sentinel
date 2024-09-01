@@ -20,14 +20,14 @@ in
     type = types.submodule {
       freeformType = json.type;
       options = {
-        server_addr = mkOption {
+        serverAddr = mkOption {
           type = types.str;
           example = "example.com:3002";
           description = lib.mdDoc ''
             The address of the Hydra Sentinel server.
           '';
         };
-        host_name = mkOption {
+        hostName = mkOption {
           type = types.str;
           example = "rpi4";
           default = config.networking.hostName;
@@ -35,7 +35,7 @@ in
             The hostname of this build machine.
           '';
         };
-        heartbeat_interval = mkOption {
+        heartbeatInterval = mkOption {
           type = types.str;
           default = "30s";
         };

@@ -10,7 +10,7 @@ self:
       services.hydra = {
         enable = true;
         buildMachinesFiles = [
-          config.services.hydra-sentinel-server.settings.hydra_machines_file
+          config.services.hydra-sentinel-server.settings.hydraMachinesFile
         ];
         hydraURL = "http://localhost:${toString config.services.hydra.port}";
         notificationSender = "";
@@ -20,9 +20,9 @@ self:
         listenHost = "0.0.0.0";
         listenPort = 3001;
         settings = {
-          allowed_ips = [ "192.168.0.0/16" ];
-          github_webhook_secret_file = pkgs.writeText "github_webhook_secret_file" "hocus pocus";
-          build_machines = [
+          allowedIps = [ "192.168.0.0/16" ];
+          githubWebhookSecretFile = pkgs.writeText "github_webhook_secret_file" "hocus pocus";
+          buildMachines = [
             {
               hostName = "client";
               systems = [ "x86_64-linux" ];
@@ -46,7 +46,7 @@ self:
         enable = true;
         settings = {
           hostName = "client";
-          server_addr = "server:3001";
+          serverAddr = "server:3001";
         };
       };
     };

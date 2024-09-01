@@ -9,6 +9,7 @@ use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 mod rate_limiter;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Config {
     server_addr: String,
     host_name: String,

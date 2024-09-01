@@ -39,7 +39,7 @@ in
         type = types.submodule {
           freeformType = json.type;
           options = {
-            github_webhook_secret_file = mkOption {
+            githubWebhookSecretFile = mkOption {
               type = types.nullOr types.path;
               default = null;
               description = mdDoc ''
@@ -47,7 +47,7 @@ in
               '';
             };
 
-            hydra_base_url = mkOption {
+            hydraBaseUrl = mkOption {
               type = types.str;
               default = "http://127.0.0.1:${toString hydraCfg.port}";
               description = mdDoc ''
@@ -55,7 +55,7 @@ in
               '';
             };
 
-            hydra_machines_file = mkOption {
+            hydraMachinesFile = mkOption {
               type = types.path;
               default = "/var/lib/hydra/machines";
               description = mdDoc ''
@@ -63,7 +63,7 @@ in
               '';
             };
 
-            allowed_ips = mkOption {
+            allowedIps = mkOption {
               type = types.listOf types.str;
               default = [ ];
               example = [ "192.168.0.0/16" ];
@@ -72,7 +72,7 @@ in
               '';
             };
 
-            heartbeat_timeout = mkOption {
+            heartbeatTimeout = mkOption {
               type = types.str;
               default = "60s";
               description = mdDoc ''
@@ -80,7 +80,7 @@ in
               '';
             };
 
-            build_machines =
+            buildMachines =
               let
                 base = {
                   hostName = mkOption {
@@ -221,8 +221,8 @@ in
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = builtins.elem cfg.settings.hydra_machines_file hydraCfg.buildMachinesFiles;
-        message = "services.hydra-sentinel.hydra_machines_file must be a member of services.hydra.buildMachinesFiles";
+        assertion = builtins.elem cfg.settings.hydraMachinesFile hydraCfg.buildMachinesFiles;
+        message = "services.hydra-sentinel.hydraMachinesFile must be a member of services.hydra.buildMachinesFiles";
       }
     ];
 
@@ -235,7 +235,7 @@ in
     };
 
     systemd.tmpfiles.rules = [
-      "f+ ${cfg.settings.hydra_machines_file} 0660 ${config.users.users.hydra-sentinel-server.name} ${config.users.users.hydra-sentinel-server.group} -"
+      "f+ ${cfg.settings.hydraMachinesFile} 0660 ${config.users.users.hydra-sentinel-server.name} ${config.users.users.hydra-sentinel-server.group} -"
     ];
 
     systemd.services.hydra-sentinel-server = {
@@ -250,7 +250,7 @@ in
           confFile = json.generate "config.json" (
             (lib.filterAttrs (_: v: v != null) (cfg.extraSettings // cfg.settings))
             // {
-              listen_addr = "${cfg.listenHost}:${toString cfg.listenPort}";
+              listenAddr = "${cfg.listenHost}:${toString cfg.listenPort}";
             }
           );
         in
