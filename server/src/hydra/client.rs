@@ -16,6 +16,7 @@ impl HydraClient {
     pub fn new(base_url: Url) -> Self {
         let mut headers = HeaderMap::new();
         headers.insert("Accept", "application/json".parse().unwrap());
+        headers.insert("Referer", base_url.to_string().parse().unwrap()); // bypass XSRF check
         Self {
             base_url,
             client: reqwest::Client::builder()
@@ -29,15 +30,52 @@ impl HydraClient {
         let mut url = self.base_url.join("api/push")?;
         url.query_pairs_mut()
             .append_pair("jobsets", &format!("{project}:{jobset}"));
-        let response = self.client.put(url).send().await?.error_for_status()?;
+        // https://github.com/NixOS/hydra/commit/916531dc9ccee52e6dab256232933fcf6d198158
+        let response = self
+            .client
+            .post(url)
+            .send()
+            .await?
+            .error_for_status_with_body()
+            .await?;
         Ok(response.json().await?)
     }
 
     pub async fn get_queue(&self) -> anyhow::Result<Vec<Build>> {
         let url = self.base_url.join("queue")?;
-        let response = self.client.get(url).send().await?.error_for_status()?;
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await?
+            .error_for_status_with_body()
+            .await?;
         let body = response.json().await?;
         Ok(body)
+    }
+}
+
+trait ResponseExt {
+    async fn error_for_status_with_body(self) -> anyhow::Result<Self>
+    where
+        Self: Sized;
+}
+
+impl ResponseExt for reqwest::Response {
+    async fn error_for_status_with_body(self) -> anyhow::Result<Self>
+    where
+        Self: Sized,
+    {
+        if self.status().is_server_error() || self.status().is_client_error() {
+            let url = self.url().clone();
+            let status = self.status();
+            let body = self.text().await;
+            return Err(anyhow::anyhow!(
+                "{url} returned HTTP {status} with body {body:#?}",
+            ));
+        }
+
+        Ok(self)
     }
 }
 
@@ -72,4 +110,11 @@ mod tests {
 
         dbg!(build);
     }
+
+    // TODO: integration tests
+    // #[tokio::test]
+    // async fn push() {
+    //     let client = HydraClient::new(Url::parse("https://localhost:3000").unwrap());
+    //     client.push("project", "jobset").await.unwrap();
+    // }
 }
