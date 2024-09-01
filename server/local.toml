@@ -2,11 +2,7 @@ listen_addr = "0.0.0.0:3000"
 hydra_base_url = "https://hydra.nregner.net"
 hydra_machines_file = "/tmp/hydra-machines"
 heartbeat_timeout = "30s"
-allowed_ips = [
-    "192.168.0.0/24",
-    "127.0.0.1/32",
-    "100.0.0.0/8",
-]
+allowed_ips = ["192.168.0.0/24", "127.0.0.1/32", "100.0.0.0/8"]
 github_webhook_secret_file = "/dev/null"
 
 [[builders]]

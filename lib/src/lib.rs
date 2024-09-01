@@ -25,7 +25,7 @@ impl From<SentinelMessage> for String {
     }
 }
 
-pub fn init<C>(default_directive:&str) -> anyhow::Result<C>
+pub fn init<C>(default_directive: &str) -> anyhow::Result<C>
 where
     C: DeserializeOwned,
 {

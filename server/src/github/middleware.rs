@@ -24,18 +24,14 @@ fn extract_signature(headers: &HeaderMap) -> Result<Vec<u8>, AppError> {
     let header = headers
         .get("X-Hub-Signature-256")
         .and_then(|value| value.to_str().ok())
-        .ok_or({
-            (
-                StatusCode::BAD_REQUEST,
-                "Missing X-Hub-Signature-256 header",
-            )
-        })?;
-    let hex = header.strip_prefix("sha256=").ok_or({
-        (
+        .ok_or((
             StatusCode::BAD_REQUEST,
-            "Invalid signature format, expected sha256=...",
-        )
-    })?;
+            "Missing X-Hub-Signature-256 header",
+        ))?;
+    let hex = header.strip_prefix("sha256=").ok_or((
+        StatusCode::BAD_REQUEST,
+        "Invalid signature format, expected sha256=...",
+    ))?;
     Ok(hex::decode(hex).map_err(|err| (StatusCode::BAD_REQUEST, format!("Invalid hex: {err}")))?)
 }
 

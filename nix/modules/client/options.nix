@@ -1,8 +1,14 @@
-{ self, config, lib, pkgs }:
+{
+  self,
+  config,
+  lib,
+  pkgs,
+}:
 let
   inherit (lib) types mkOption;
   json = pkgs.formats.json { };
-in {
+in
+{
   enable = lib.mkEnableOption "Hydra Sentinel client daemon";
 
   package = lib.mkOption {
@@ -37,4 +43,3 @@ in {
     };
   };
 }
-

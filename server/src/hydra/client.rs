@@ -67,10 +67,8 @@ mod tests {
 
     #[test]
     fn deserialize_build() {
-        let build = serde_json::from_str::<Vec<Build>>(
-            include_str!("../../test/hydra-queue.json")
-        )
-        .unwrap();
+        let build = serde_json::from_str::<Vec<Build>>(include_str!("../../test/hydra-queue.json"))
+            .unwrap();
 
         dbg!(build);
     }
