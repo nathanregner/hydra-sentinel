@@ -1,0 +1,16 @@
+name: Check Flake
+
+on:
+  push:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.branch }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@cd7d8d697e10461458bc61a30d094dc601a8b017 # pin@main
+      - name: Run flake check
+        run: nix flake check
