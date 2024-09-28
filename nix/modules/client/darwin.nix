@@ -22,7 +22,9 @@ in
     // {
       logFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
-        default = "/var/log/hydra-sentinel-client.log";
+        # TODO: write somewhere sane
+        # https://github.com/LnL7/nix-darwin/issues/460
+        default = "/tmp/hydra-sentinel-client.log";
       };
     };
 
