@@ -43,7 +43,7 @@ async fn handle_socket(
     handle: Arc<BuilderHandle>,
 ) -> Result<(), AppError> {
     let (mut sender, mut receiver) = socket.split();
-    sender.send(Message::Ping(vec![])).await?;
+    sender.send(Message::Ping(Default::default())).await?;
 
     // TODO: throttle
     let send_handle = handle.clone();
@@ -55,7 +55,9 @@ async fn handle_socket(
                 tracing::info!("requesting builder stay awake");
             }
             sender
-                .send(Message::Text(SentinelMessage::KeepAwake(wanted).into()))
+                .send(Message::text::<String>(
+                    SentinelMessage::KeepAwake(wanted).into(),
+                ))
                 .await?;
 
             tokio::select! {
