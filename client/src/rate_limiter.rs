@@ -1,7 +1,7 @@
 // source: tokio_util
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::time::{interval, Interval};
+use tokio::time::{Interval, interval};
 
 pub struct RateLimiter {
     interval: Mutex<Interval>,

@@ -1,4 +1,4 @@
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de::Visitor};
 use std::fmt::{self, Display};
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
@@ -28,7 +28,7 @@ impl<'de> Deserialize<'de> for MacAddress {
     {
         struct V;
 
-        impl<'de> Visitor<'de> for V {
+        impl Visitor<'_> for V {
             type Value = MacAddress;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

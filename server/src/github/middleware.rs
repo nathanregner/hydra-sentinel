@@ -5,7 +5,7 @@ use axum::{
     middleware::{self},
     response::IntoResponse,
 };
-use hmac::{digest::MacError, Hmac, Mac};
+use hmac::{Hmac, Mac, digest::MacError};
 use secrecy::{ExposeSecret, SecretString};
 use sha2::Sha256;
 
@@ -70,7 +70,7 @@ mod tests {
     use super::*;
     use axum::http::Method;
     use axum::routing::post;
-    use axum::{body::Body, Router};
+    use axum::{Router, body::Body};
     use tower::ServiceExt;
 
     #[axum::debug_handler]
@@ -83,7 +83,7 @@ mod tests {
         let app = Router::new().route(
             "/",
             post(ok).layer(middleware::from_fn_with_state(
-                SecretString::new("It's a Secret to Everybody".to_string()),
+                SecretString::from("It's a Secret to Everybody"),
                 super::validate_request_signature,
             )),
         );

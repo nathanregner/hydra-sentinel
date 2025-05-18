@@ -16,7 +16,7 @@ use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
     net::UdpSocket,
-    sync::watch::{channel, error::RecvError, Receiver, Sender},
+    sync::watch::{Receiver, Sender, channel, error::RecvError},
 };
 
 use super::client::HydraClient;
@@ -137,7 +137,7 @@ impl Store {
             .values()
             .filter_map(|builder| {
                 let mac_address = builder.mac_address()?;
-                if !connected.contains(&*builder.host_name())
+                if !connected.contains(builder.host_name())
                     && queued_systems
                         .intersection(&builder.systems())
                         .next()
@@ -256,7 +256,6 @@ pub async fn generate_machines_file(
 ) -> anyhow::Result<Infallible> {
     // fail early if possible
     if let Err(err) = fs::OpenOptions::new()
-        .write(true)
         .create(true)
         .append(true)
         .open(&machines_file)

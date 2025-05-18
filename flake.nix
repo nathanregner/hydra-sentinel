@@ -10,7 +10,6 @@
   outputs =
     {
       self,
-      nixpkgs,
       flake-parts,
       ...
     }@inputs:
@@ -25,8 +24,6 @@
       perSystem =
         {
           config,
-          system,
-          inputs',
           pkgs,
           lib,
           ...
@@ -98,7 +95,7 @@
           {
             packages = {
               inherit client server;
-              test = pkgs.stdenv.mkDerivation ({
+              test = pkgs.stdenv.mkDerivation {
                 pname = "hydra-sentinel-client";
                 version = "1.1.2";
 
@@ -124,28 +121,24 @@
                 buildPhase = ''
                   xcrun --sdk macosx --show-sdk-path >$out
                 '';
-              });
+              };
 
             };
 
             devShells.default = pkgs.mkShell {
-              inherit (commonArgs) nativeBuildInputs buildInputs;
-              packages = (
-                with pkgs;
-                [
-                  cargo
+              inputsFrom = [
+                config.treefmt.build.devShell
+              ];
+              packages =
+                commonArgs.nativeBuildInputs
+                ++ commonArgs.buildInputs
+                ++ (with pkgs; [
                   cargo-nextest
                   cargo-watch
                   clippy
-                  config.treefmt.build.wrapper
-                  rust-analyzer
-                  rust-bindgen
-                  rustc
-                  rustfmt
-                ]
-              );
+                  # rust-bindgen
+                ]);
 
-              LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl ];
               RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
             };
 
@@ -186,5 +179,4 @@
         };
       };
     };
-
 }

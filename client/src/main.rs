@@ -1,7 +1,7 @@
 use crate::rate_limiter::RateLimiter;
 use backon::{ExponentialBuilder, Retryable};
 use futures_util::{SinkExt, StreamExt};
-use hydra_sentinel::{shutdown_signal, SentinelMessage};
+use hydra_sentinel::{SentinelMessage, shutdown_signal};
 use serde::Deserialize;
 use std::time::Duration;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
@@ -66,7 +66,7 @@ async fn run(config: &Config) -> anyhow::Result<()> {
         let mut interval = tokio::time::interval(config.heartbeat_interval);
         loop {
             interval.tick().await;
-            sender.send(Message::Ping(vec![])).await?;
+            sender.send(Message::Ping(Default::default())).await?;
         }
         #[allow(unreachable_code)]
         anyhow::Ok(())
