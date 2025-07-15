@@ -1,10 +1,13 @@
 use crate::rate_limiter::RateLimiter;
 use backon::{ExponentialBuilder, Retryable};
 use futures_util::{SinkExt, StreamExt};
-use hydra_sentinel::{SentinelMessage, shutdown_signal};
+use hydra_sentinel::{shutdown_signal, SentinelMessage};
+use image::ImageReader;
 use serde::Deserialize;
+use std::io::Cursor;
 use std::time::Duration;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tray_icon::TrayIconBuilder;
 
 mod rate_limiter;
 
@@ -26,9 +29,25 @@ impl Config {
     }
 }
 
+fn load_icon() -> tray_icon::Icon {
+    let (icon_rgba, icon_width, icon_height) = {
+        let image = ImageReader::new(Cursor::new(include_bytes!("../icon.png"))).into_rgba8();
+        let (width, height) = image.dimensions();
+        let rgba = image.into_raw();
+        (rgba, width, height)
+    };
+    tray_icon::Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to open icon")
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let config = hydra_sentinel::init::<Config>(&format!("{}=DEBUG", module_path!()))?;
+
+    let tray_icon = TrayIconBuilder::new()
+        .with_tooltip("system-tray - tray icon library!")
+        .with_icon(load_icon())
+        .build()
+        .unwrap();
 
     let reconnect = RateLimiter::new(Duration::from_secs(30));
     let run = async {

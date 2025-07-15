@@ -1,6 +1,6 @@
 use axum::http::HeaderMap;
 use reqwest::Url;
-use serde::{Deserialize, de};
+use serde::{de, Deserialize};
 use serde_json::Value;
 
 use crate::model::System;
@@ -26,14 +26,13 @@ impl HydraClient {
         }
     }
 
-    pub async fn push(&self, project: &str, jobset: &str) -> anyhow::Result<Value> {
-        let mut url = self.base_url.join("api/push")?;
-        url.query_pairs_mut()
-            .append_pair("jobsets", &format!("{project}:{jobset}"));
+    pub async fn push(&self, event: Value) -> anyhow::Result<Value> {
+        let mut url = self.base_url.join("/api/push-github")?;
         // https://github.com/NixOS/hydra/commit/916531dc9ccee52e6dab256232933fcf6d198158
         let response = self
             .client
             .post(url)
+            .body(event)
             .send()
             .await?
             .error_for_status_with_body()

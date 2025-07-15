@@ -9,21 +9,13 @@ use axum::extract::State;
 use axum::middleware;
 use axum::routing::post;
 use secrecy::SecretString;
+use serde_json::Value;
 
 #[tracing::instrument(skip_all, err)]
-async fn webhook(
-    State(client): State<HydraClient>,
-    event: Json<PushEvent>,
-) -> Result<(), AppError> {
-    let Some(branch) = event.branch() else {
-        tracing::info!(?event, "Ignoring push: no branch");
-        return Ok(());
-    };
-
-    let repo = &event.repository.name;
-    tracing::info!("Received push event from {repo}/{branch}");
+async fn webhook(State(client): State<HydraClient>, event: Json<Value>) -> Result<(), AppError> {
+    tracing::info!("Received push event from {event?}");
     tracing::trace!(?event);
-    let response = client.push(repo, branch).await?;
+    let response = client.push(push).await?;
     tracing::info!(?response);
     Ok(())
 }

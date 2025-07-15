@@ -1,2 +1,2 @@
-server_addr = "sagittarius:3002"
-host_name = "iapetus"
+serverAddr = "sagittarius:3002"
+hostName = "iapetus"

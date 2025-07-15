@@ -133,10 +133,12 @@
                 commonArgs.nativeBuildInputs
                 ++ commonArgs.buildInputs
                 ++ (with pkgs; [
+                  # rust-bindgen
+                  cargo
                   cargo-nextest
                   cargo-watch
                   clippy
-                  # rust-bindgen
+                  rust-analyzer
                 ]);
 
               RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";

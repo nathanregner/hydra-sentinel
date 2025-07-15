@@ -17,3 +17,5 @@ tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 tokio-tungstenite = { workspace = true, features = ["native-tls"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing = { workspace = true }
+tray-icon = "0.20.1"
+image = { version = "0.25.6", default-features = false, features = ["png"] }
