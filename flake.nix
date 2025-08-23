@@ -59,18 +59,7 @@
                 xcbuild
                 # rustPlatform.bindgenHook
               ];
-              buildInputs =
-                with pkgs;
-                [ openssl ]
-                ++ (lib.optionals stdenv.isDarwin (
-                  with darwin.apple_sdk.frameworks;
-                  [
-                    CoreFoundation
-                    SystemConfiguration
-                    IOKit
-                    libiconv
-                  ]
-                ));
+              buildInputs = with pkgs; [ openssl ];
 
               cargoLock.lockFile = ./Cargo.lock;
             };
@@ -106,18 +95,7 @@
                   rustPlatform.bindgenHook
                   xcbuild
                 ];
-                buildInputs =
-                  with pkgs;
-                  [ openssl ]
-                  ++ (lib.optionals stdenv.isDarwin (
-                    with darwin.apple_sdk.frameworks;
-                    [
-                      clang
-                      SystemConfiguration
-                      IOKit
-                      libiconv
-                    ]
-                  ));
+                buildInputs = with pkgs; [ openssl ];
                 buildPhase = ''
                   xcrun --sdk macosx --show-sdk-path >$out
                 '';
