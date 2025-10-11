@@ -1,6 +1,6 @@
 use axum::http::HeaderMap;
 use reqwest::Url;
-use serde::{de, Deserialize};
+use serde::{Deserialize, de};
 use serde_json::Value;
 
 use crate::model::System;

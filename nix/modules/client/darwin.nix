@@ -17,6 +17,7 @@ in
         config
         pkgs
         lib
+        cfg
         ;
     }
     // {
@@ -31,9 +32,10 @@ in
   config = lib.mkIf cfg.enable (
     let
       user = config.users.users._hydra-sentinel-client;
+      configFile = json.generate "config.json" (lib.filterAttrs (_: v: v != null) cfg.settings);
     in
     {
-      users = {
+      users = lib.mkIf cfg.headless {
         users._hydra-sentinel-client = {
           description = "Hydra Sentinel client service user";
           uid = 3002;
@@ -43,26 +45,37 @@ in
 
       system.activationScripts.preActivation.text = ''
         touch '${cfg.logFile}'
+        ${lib.optionalString (pkgs.stdenv.isDarwin && cfg.headless) ''
+          chown ${toString user.uid} '${cfg.logFile}'
+        ''}
         chmod 0644 '${cfg.logFile}'
-        chown ${toString user.uid} '${cfg.logFile}'
       '';
 
-      launchd.daemons.hydra-sentinel-client =
-        let
-          configFile = json.generate "config.json" (lib.filterAttrs (_: v: v != null) cfg.settings);
-        in
-        {
-          script = ''
-            "${cfg.package}/bin/hydra-sentinel-client" ${toString configFile}
-          '';
-          serviceConfig = {
-            UserName = user.name;
-            KeepAlive = true;
-            RunAtLoad = true;
-            StandardOutPath = cfg.logFile;
-            StandardErrorPath = cfg.logFile;
-          };
+      launchd.daemons.hydra-sentinel-client = lib.mkIf cfg.headless {
+        script = ''
+          "${cfg.package}/bin/hydra-sentinel-client" ${toString configFile}
+        '';
+        serviceConfig = {
+          UserName = user.name;
+          KeepAlive = true;
+          RunAtLoad = true;
+          StandardOutPath = cfg.logFile;
+          StandardErrorPath = cfg.logFile;
         };
+      };
+
+      launchd.user.agents.hydra-sentinel-client = lib.mkIf (!cfg.headless) {
+        script = ''
+          "${cfg.package}/bin/hydra-sentinel-client" ${toString configFile}
+        '';
+        serviceConfig = {
+          KeepAlive = true;
+          RunAtLoad = true;
+          StandardOutPath = cfg.logFile;
+          StandardErrorPath = cfg.logFile;
+        };
+      };
     }
+
   );
 }

@@ -1,8 +1,9 @@
 {
   self,
   config,
-  lib,
   pkgs,
+  lib,
+  cfg,
 }:
 let
   inherit (lib) types mkOption;
@@ -11,9 +12,14 @@ in
 {
   enable = lib.mkEnableOption "Hydra Sentinel client daemon";
 
+  headless = lib.mkOption {
+    type = types.bool;
+    default = false;
+  };
+
   package = lib.mkOption {
     type = types.package;
-    default = self.packages."${pkgs.system}".client;
+    default = self.packages."${pkgs.system}"."${if cfg.headless then "client-headless" else "client"}";
   };
 
   settings = lib.mkOption {

@@ -2,7 +2,7 @@
 target/
 
 # Nix
-result
+result*
 .nixos-test-history
 
 # Devshell

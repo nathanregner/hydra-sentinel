@@ -3,8 +3,12 @@ name = "hydra-sentinel-client"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["tray-icon"]
+tray-icon = ["dep:image", "dep:tao", "dep:tray-icon"]
+
 [dependencies]
-hydra-sentinel.path = "../lib/"
+hydra-sentinel = { workspace = true }
 
 anyhow = { workspace = true }
 backon = { workspace = true }
@@ -13,7 +17,11 @@ humantime-serde = { workspace = true }
 keepawake = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt", "sync"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
 tokio-tungstenite = { workspace = true, features = ["native-tls"] }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+image = { workspace = true, optional = true }
+tao = { workspace = true, optional = true }
+tray-icon = { workspace = true, optional = true }

@@ -44,6 +44,7 @@ self:
       imports = [ self.outputs.nixosModules.client ];
       services.hydra-sentinel-client = {
         enable = true;
+        headless = true;
         settings = {
           hostName = "client";
           serverAddr = "server:3001";

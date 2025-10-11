@@ -30,23 +30,29 @@
         }@perSystem:
         (
           let
+            libs =
+              with pkgs;
+              (lib.optionals stdenv.isLinux [
+                libGL
+                libappindicator
+                libayatana-appindicator
+                libxkbcommon
+                wayland
+              ]);
+
             commonArgs = {
               version = "0.1.0";
-              src =
-                let
-                  inherit (lib) fileset;
-                in
-                fileset.toSource {
-                  root = ./.;
-                  fileset = fileset.unions [
-                    ./Cargo.lock
-                    ./Cargo.toml
-                    ./client
-                    ./lib
-                    ./server
-                    ./vendor
-                  ];
-                };
+              src = lib.fileset.toSource {
+                root = ./.;
+                fileset = lib.fileset.unions [
+                  ./Cargo.lock
+                  ./Cargo.toml
+                  ./client
+                  ./lib
+                  ./server
+                  ./vendor
+                ];
+              };
 
               env = lib.optionalAttrs pkgs.stdenv.isDarwin {
                 LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
@@ -54,12 +60,25 @@
                 # CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG = "true";
               };
 
-              nativeBuildInputs = with pkgs; [
-                pkg-config
-                xcbuild
-                # rustPlatform.bindgenHook
-              ];
-              buildInputs = with pkgs; [ openssl ];
+              nativeBuildInputs =
+                with pkgs;
+                [ pkg-config ]
+                ++ lib.optionals stdenv.isDarwin [
+                  xcbuild
+                ]
+                ++ lib.optionals stdenv.isLinux [
+                  gtk3.dev
+                  makeWrapper
+                ];
+
+              buildInputs =
+                with pkgs;
+                libs
+                ++ [ openssl.dev ]
+                ++ lib.optionals stdenv.isLinux [
+                  gtk3.dev
+                  xdotool
+                ];
 
               cargoLock.lockFile = ./Cargo.lock;
             };
@@ -69,6 +88,23 @@
               // rec {
                 pname = "hydra-sentinel-client";
                 cargoBuildFlags = [ "--package ${pname}" ];
+                cargoTestFlags = cargoBuildFlags;
+                postFixup = lib.optionalString pkgs.stdenv.isLinux ''
+                  wrapProgram $out/bin/hydra-sentinel-client \
+                    --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath libs}
+                '';
+              }
+            );
+
+            client-headless = pkgs.rustPlatform.buildRustPackage (
+              commonArgs
+              // rec {
+                pname = "hydra-sentinel-client";
+                cargoBuildFlags = [
+                  "--package ${pname}"
+                  "--no-default-features"
+                ];
+                cargoTestFlags = cargoBuildFlags;
               }
             );
 
@@ -77,30 +113,13 @@
               // rec {
                 pname = "hydra-sentinel-server";
                 cargoBuildFlags = [ "--package ${pname}" ];
+                cargoTestFlags = cargoBuildFlags;
               }
             );
-
           in
           {
             packages = {
-              inherit client server;
-              test = pkgs.stdenv.mkDerivation {
-                pname = "hydra-sentinel-client";
-                version = "1.1.2";
-
-                src = ./.;
-
-                nativeBuildInputs = with pkgs; [
-                  pkg-config
-                  rustPlatform.bindgenHook
-                  xcbuild
-                ];
-                buildInputs = with pkgs; [ openssl ];
-                buildPhase = ''
-                  xcrun --sdk macosx --show-sdk-path >$out
-                '';
-              };
-
+              inherit client client-headless server;
             };
 
             devShells.default = pkgs.mkShell {
@@ -116,13 +135,15 @@
                   cargo-watch
                   clippy
                   rust-analyzer
-                  rust-bindgen
+                  rustfmt
                 ]);
-
-              RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+              env = {
+                RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+                LD_LIBRARY_PATH = lib.makeLibraryPath libs;
+              };
             };
 
-            treefmt = import ./treefmt.nix;
+            treefmt = import ./treefmt.nix { inherit (pkgs) rustfmt; };
 
             checks = builtins.listToAttrs (
               builtins.map
@@ -146,6 +167,7 @@
       flake = {
         overlays.default = _: prev: {
           hydra-sentinel-client = self.packages.${prev.system}.client;
+          hydra-sentinel-client-headless = self.packages.${prev.system}.client-headless;
           hydra-sentinel-server = self.packages.${prev.system}.server;
         };
 
