@@ -41,8 +41,8 @@ impl<'de> Deserialize<'de> for MacAddress {
             {
                 let mut bytes = [0u8; 6];
                 let mut iter = value.split(':');
-                for i in 0..6 {
-                    bytes[i] = u8::from_str_radix(
+                for b in bytes.iter_mut() {
+                    *b = u8::from_str_radix(
                         iter.next().ok_or_else(|| E::custom("not enough bytes"))?,
                         16,
                     )

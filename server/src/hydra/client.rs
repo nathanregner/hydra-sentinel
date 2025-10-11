@@ -1,6 +1,6 @@
 use axum::http::HeaderMap;
 use reqwest::Url;
-use serde::{Deserialize, de};
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::model::System;
@@ -27,7 +27,7 @@ impl HydraClient {
     }
 
     pub async fn push(&self, event: String) -> anyhow::Result<Value> {
-        let mut url = self.base_url.join("/api/push-github")?;
+        let url = self.base_url.join("/api/push-github")?;
         // https://github.com/NixOS/hydra/commit/916531dc9ccee52e6dab256232933fcf6d198158
         let response = self
             .client
@@ -80,22 +80,7 @@ impl ResponseExt for reqwest::Response {
 
 #[derive(Deserialize, Debug)]
 pub struct Build {
-    pub project: String,
-    pub jobset: String,
-    #[serde(deserialize_with = "int_to_bool")]
-    pub finished: bool,
-    pub starttime: Option<u32>,
-    pub stoptime: Option<u32>,
-    pub buildstatus: Option<u32>,
     pub system: System,
-}
-
-fn int_to_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    let s: u32 = de::Deserialize::deserialize(deserializer)?;
-    Ok(s != 0)
 }
 
 #[cfg(test)]

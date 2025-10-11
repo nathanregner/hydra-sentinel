@@ -179,6 +179,11 @@
         darwinModules = {
           client = import ./nix/modules/client/darwin.nix { inherit (self) packages; };
         };
+
+        hydraJobs = {
+          checks = self.checks.x86_64-linux;
+          inherit (self) packages;
+        };
       };
     };
 }
