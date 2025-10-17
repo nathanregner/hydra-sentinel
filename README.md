@@ -18,3 +18,4 @@ VPN like Tailscale.
 
 - Tests for non-headless systems, darwin
 - Better docs
+- Check newest queued, ignore if stalled
