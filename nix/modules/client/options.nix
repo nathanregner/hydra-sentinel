@@ -19,7 +19,10 @@ in
 
   package = lib.mkOption {
     type = types.package;
-    default = self.packages."${pkgs.system}"."${if cfg.headless then "client-headless" else "client"}";
+    default =
+      self.packages."${pkgs.stdenv.hostPlatform.system}"."${
+        if cfg.headless then "client-headless" else "client"
+      }";
   };
 
   settings = lib.mkOption {

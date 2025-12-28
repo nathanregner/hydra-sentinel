@@ -165,11 +165,16 @@
         );
 
       flake = {
-        overlays.default = _: prev: {
-          hydra-sentinel-client = self.packages.${prev.system}.client;
-          hydra-sentinel-client-headless = self.packages.${prev.system}.client-headless;
-          hydra-sentinel-server = self.packages.${prev.system}.server;
-        };
+        overlays.default =
+          _: prev:
+          let
+            inherit (prev.stdenv.hostPlatform) system;
+          in
+          {
+            hydra-sentinel-client = self.packages.${system}.client;
+            hydra-sentinel-client-headless = self.packages.${system}.client-headless;
+            hydra-sentinel-server = self.packages.${system}.server;
+          };
 
         nixosModules = {
           server = import ./nix/modules/server.nix { inherit (self) packages; };

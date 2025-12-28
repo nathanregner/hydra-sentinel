@@ -20,7 +20,7 @@ in
 
       package = lib.mkOption {
         type = types.package;
-        default = self.packages."${pkgs.system}".server;
+        default = self.packages."${pkgs.stdenv.hostPlatform.system}".server;
       };
 
       listenHost = mkOption {
