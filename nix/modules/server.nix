@@ -241,10 +241,7 @@ in
     systemd.services.hydra-sentinel-server = {
       wantedBy = [ "multi-user.target" ];
       requires = [ "hydra-server.service" ];
-      after = [
-        "hydra-server.service"
-        "hydra-server.service"
-      ];
+      after = [ "hydra-server.service" ];
       serviceConfig =
         let
           confFile = json.generate "config.json" (

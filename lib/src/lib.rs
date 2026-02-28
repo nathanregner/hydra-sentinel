@@ -1,10 +1,10 @@
 use figment::{
-    Figment,
     providers::{Env, Format, Json, Toml},
+    Figment,
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tokio::signal;
-use tracing_subscriber::{EnvFilter, prelude::*, util::SubscriberInitExt};
+use tracing_subscriber::{prelude::*, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Serialize, Deserialize)]
 pub enum SentinelMessage {

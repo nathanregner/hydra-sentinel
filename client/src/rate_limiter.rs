@@ -1,7 +1,7 @@
 // source: tokio_util
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::time::{Interval, interval};
+use tokio::time::{interval, Interval};
 
 pub struct RateLimiter {
     interval: Mutex<Interval>,
@@ -23,7 +23,7 @@ impl RateLimiter {
         f().await
     }
 
-    async fn wait(&self) {
+    pub async fn wait(&self) {
         let mut interval = self.interval.lock().await;
         interval.tick().await;
     }

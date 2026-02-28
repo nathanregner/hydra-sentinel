@@ -16,7 +16,7 @@ use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncWriteExt},
     net::UdpSocket,
-    sync::watch::{Receiver, Sender, channel, error::RecvError},
+    sync::watch::{channel, error::RecvError, Receiver, Sender},
 };
 
 use super::client::HydraClient;

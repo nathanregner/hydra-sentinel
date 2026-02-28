@@ -1,7 +1,7 @@
 use crate::{config::Config, rate_limiter::RateLimiter};
 use backon::{ExponentialBuilder, Retryable};
 use futures_util::{SinkExt, StreamExt};
-use hydra_sentinel::{SentinelMessage, shutdown_signal};
+use hydra_sentinel::{shutdown_signal, SentinelMessage};
 use std::time::Duration;
 use tokio::sync::{oneshot, watch};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
@@ -20,11 +20,16 @@ pub async fn connect(
     let config = hydra_sentinel::init::<Config>(&format!("{}=DEBUG", module_path!()))?;
 
     let reconnect = RateLimiter::new(Duration::from_secs(30));
+    let wake = crate::wake_monitor::spawn();
     let connection = async move {
         loop {
-            reconnect
-                .throttle(|| monitor(&config, &connection_state, &enabled))
-                .await?;
+            tokio::select! {
+                _ = reconnect.wait() => {}
+                _ = wake.notified() => {
+                    tracing::info!("Wake from sleep detected, reconnecting immediately");
+                }
+            }
+            monitor(&config, &connection_state, &enabled).await?;
         }
     };
 

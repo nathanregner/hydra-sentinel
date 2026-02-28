@@ -4,8 +4,8 @@ use tao::{
 };
 use tokio::sync::{oneshot, watch};
 use tray_icon::{
-    Icon, TrayIcon, TrayIconBuilder,
     menu::{Menu, MenuEvent, MenuItem},
+    Icon, TrayIcon, TrayIconBuilder,
 };
 
 use crate::ConnectionState;

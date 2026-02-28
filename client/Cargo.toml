@@ -25,3 +25,9 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 image = { workspace = true, optional = true }
 tao = { workspace = true, optional = true }
 tray-icon = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-sys = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { workspace = true }

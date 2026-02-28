@@ -5,7 +5,7 @@ use axum::{
     middleware::{self},
     response::IntoResponse,
 };
-use hmac::{Hmac, Mac, digest::MacError};
+use hmac::{digest::MacError, Hmac, Mac};
 use secrecy::{ExposeSecret, SecretString};
 use sha2::Sha256;
 
@@ -70,7 +70,7 @@ mod tests {
     use super::*;
     use axum::http::Method;
     use axum::routing::post;
-    use axum::{Router, body::Body};
+    use axum::{body::Body, Router};
     use tower::ServiceExt;
 
     #[axum::debug_handler]

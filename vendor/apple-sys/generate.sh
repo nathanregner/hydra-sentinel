@@ -2,11 +2,30 @@ bindgen \
  --no-include-path-detection \
  --allowlist-function IOPMAssertionCreateWithName \
  --allowlist-function IOPMAssertionRelease \
+ --allowlist-function IORegisterForSystemPower \
+ --allowlist-function IODeregisterForSystemPower \
+ --allowlist-function IOAllowPowerChange \
+ --allowlist-function IONotificationPortGetRunLoopSource \
+ --allowlist-function IONotificationPortDestroy \
+ --allowlist-function CFRunLoopGetCurrent \
+ --allowlist-function CFRunLoopAddSource \
+ --allowlist-function CFRunLoopRemoveSource \
+ --allowlist-function CFRunLoopStop \
+ --allowlist-function CFRetain \
+ --allowlist-function CFRelease \
+ --allowlist-function CFRunLoopRun \
+ --allowlist-function IOServiceClose \
  --allowlist-var kIOReturnSuccess \
  --allowlist-var kIOPMAssertionLevelOn \
+ --allowlist-var kCFRunLoopDefaultMode \
+ --allowlist-var kCFRunLoopCommonModes \
+ --allowlist-var IOMessageCanSystemSleep \
+ --allowlist-var IOMessageSystemWillSleep \
+ --allowlist-var IOMessageSystemWillNotSleep \
+ --allowlist-var IOMessageSystemHasPoweredOn \
+ --allowlist-var IOMessageSystemWillPowerOn \
  wrapper.h \
  -- \
  -x objective-c -fblocks -fmodules \
  -isysroot $(xcrun --sdk macosx --show-sdk-path) \
 > src/IOKit.rs
-

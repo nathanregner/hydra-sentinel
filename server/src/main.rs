@@ -2,12 +2,12 @@ use crate::{
     config::Config,
     hydra::{
         client::HydraClient,
-        store::{Store, generate_machines_file, wake_builders, watch_job_queue},
+        store::{generate_machines_file, wake_builders, watch_job_queue, Store},
     },
     middleware::allowed_ips,
 };
 use anyhow::Context;
-use axum::{Router, routing::get};
+use axum::{routing::get, Router};
 
 use hydra_sentinel::shutdown_signal;
 use listenfd::ListenFd;

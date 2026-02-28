@@ -6,6 +6,7 @@ use crate::websocket::ConnectionState;
 mod app;
 mod config;
 mod rate_limiter;
+mod wake_monitor;
 mod websocket;
 
 fn main() -> anyhow::Result<()> {
