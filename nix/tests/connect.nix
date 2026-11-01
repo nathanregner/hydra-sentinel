@@ -9,9 +9,6 @@ self:
       imports = [ self.outputs.nixosModules.server ];
       services.hydra = {
         enable = true;
-        buildMachinesFiles = [
-          config.services.hydra-sentinel-server.settings.hydraMachinesFile
-        ];
         hydraURL = "http://localhost:${toString config.services.hydra.port}";
         notificationSender = "";
       };
@@ -26,11 +23,6 @@ self:
             {
               hostName = "client";
               systems = [ "x86_64-linux" ];
-              supportedFeatures = [
-                "nixos-test"
-                "benchmark"
-                "big-parallel"
-              ];
             }
           ];
         };
@@ -59,13 +51,8 @@ self:
       client.start()
 
       server.wait_for_unit("hydra-sentinel-server.service")
-      client.wait_for_unit("hydra-sentinel-client.service")
+      client.wait_for_unit("hydra-sentinel-client-headless.service")
 
-      server.wait_until_succeeds("wc -l /var/lib/hydra/machines | gawk '{ if (! strtonum($1) > 0) { exit 1 } }'")
-
-      expected = "ssh://client x86_64-linux - 1 1 benchmark,big-parallel,nixos-test - -"
-      actual = server.succeed("cat /var/lib/hydra/machines").strip()
-      print(f"got {actual!r}, expected {expected!r}")
-      assert expected == actual
+      server.wait_until_succeeds("journalctl -u hydra-sentinel-server.service | grep '\"client\"@.* connected'")
     '';
 }

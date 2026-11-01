@@ -1,9 +1,15 @@
 # Hydra Sentinel
 
 This flake provides `NixOS` and `nix-darwin` modules to automatically wake
-[nix builders](https://nix.dev/manual/nix/2.25/advanced-topics/distributed-builds)
-when [Hydra](https://github.com/NixOS/hydra) has builds queued for a matching
-system type.
+[Hydra](https://github.com/NixOS/hydra) builders when builds are queued for a
+matching system type, and keep them awake until the queue drains.
+
+Builders register themselves with Hydra by running `hydra-builder`, which
+connects to the queue runner over gRPC; Sentinel only manages their power state.
+
+Hydra aborts builds for a system once no connected builder has supported it for
+`services.hydra.queueRunner.settings.maxUnsupportedTimeInS`. Set this longer than
+your builders take to wake.
 
 ## Usage
 

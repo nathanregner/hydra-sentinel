@@ -6,15 +6,11 @@ use reqwest::StatusCode;
 use std::{
     collections::{HashMap, HashSet},
     convert::Infallible,
-    fs, iter,
     net::Ipv4Addr,
-    path::PathBuf,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 use tokio::{
-    fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
     net::UdpSocket,
     sync::watch::{Receiver, Sender, channel, error::RecvError},
 };
@@ -249,54 +245,6 @@ pub async fn watch_job_queue(
     }
 }
 
-#[tracing::instrument(skip_all)]
-pub async fn generate_machines_file(
-    store: Arc<Store>,
-    machines_file: PathBuf,
-) -> anyhow::Result<Infallible> {
-    // fail early if possible
-    if let Err(err) = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&machines_file)
-    {
-        anyhow::bail!("{:?} is not writable: {}", machines_file, err);
-    }
-
-    let mut sub = store.subscribe();
-    loop {
-        let mut current = String::new();
-        File::open(&machines_file)
-            .await?
-            .read_to_string(&mut current)
-            .await?;
-
-        let mut updated = store
-            .get_connected()
-            .into_iter()
-            .flat_map(|builder| iter::once(&builder.spec).chain(builder.vms.iter()))
-            .map(|spec| format!("{}\n", spec))
-            .collect::<Vec<_>>();
-        updated.sort();
-        tracing::debug!("{} connected builders", updated.len());
-        let updated = updated.join("");
-
-        if current != updated {
-            current = updated;
-            File::create(&machines_file)
-                .await?
-                .write_all(current.as_bytes())
-                .await?;
-            tracing::info!("Regenerated builders file:\n{current}");
-        }
-
-        tokio::select! {
-            r = sub.changed() => r?,
-            _ = tokio::time::sleep(Duration::from_secs(30)) => {},
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::model::BuildMachineSpec;
@@ -304,20 +252,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn wakes_host_for_vm_system() {
+        let mac_address: MacAddress = serde_json::from_str("\"00:11:22:33:44:55\"").unwrap();
+        let store = Store::new(
+            Duration::from_secs(60),
+            vec![BuildMachine {
+                spec: BuildMachineSpec {
+                    host_name: "host".into(),
+                    systems: [System::Aarch64Darwin].into(),
+                },
+                vms: vec![BuildMachineSpec {
+                    host_name: "host-vm".into(),
+                    systems: [System::Aarch64Linux].into(),
+                }],
+                mac_address: Some(mac_address),
+            }],
+        );
+
+        store.update_queued([System::X86_64Linux]);
+        assert_eq!(store.machines_to_wake(), vec![]);
+
+        store.update_queued([System::Aarch64Linux]);
+        assert_eq!(store.machines_to_wake(), vec![mac_address]);
+    }
+
+    #[test]
     fn subscribe() {
         let store = Arc::new(Store::new(
             Duration::from_secs(60),
             vec![BuildMachine {
                 spec: BuildMachineSpec {
-                    ssh_user: None,
                     host_name: "bogus".into(),
-                    ssh_key: None,
                     systems: [System::X86_64Linux].into(),
-                    supported_features: Default::default(),
-                    mandatory_features: Default::default(),
-                    max_jobs: None,
-                    speed_factor: None,
-                    public_host_key: None,
                 },
                 vms: vec![],
                 mac_address: None,

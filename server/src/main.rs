@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     hydra::{
         client::HydraClient,
-        store::{Store, generate_machines_file, wake_builders, watch_job_queue},
+        store::{Store, wake_builders, watch_job_queue},
     },
     middleware::allowed_ips,
 };
@@ -75,14 +75,12 @@ async fn main() -> anyhow::Result<()> {
     .into_future();
 
     let watch_job_queue = watch_job_queue(store.clone(), hydra_client);
-    let wake_builders = wake_builders(store.clone());
-    let generate_machines_file = generate_machines_file(store, config.hydra_machines_file);
+    let wake_builders = wake_builders(store);
 
     tokio::select! {
         r = serve => { r?; },
         r = watch_job_queue => { r?; },
         r = wake_builders => { r?; },
-        r = generate_machines_file => { r?; },
     };
     Ok(())
 }

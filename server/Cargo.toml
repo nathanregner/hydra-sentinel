@@ -19,7 +19,7 @@ secrecy = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "fs"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower = { workspace = true, features = ["tracing", "timeout"] }
 tower-http = { workspace = true, features = ["trace", "timeout"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
