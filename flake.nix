@@ -32,7 +32,7 @@
           let
             libs =
               with pkgs;
-              (lib.optionals stdenv.isLinux [
+              (lib.optionals stdenv.hostPlatform.isLinux [
                 libGL
                 libappindicator
                 libayatana-appindicator
@@ -54,7 +54,7 @@
                 ];
               };
 
-              env = lib.optionalAttrs pkgs.stdenv.isDarwin {
+              env = lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
                 LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
                 # RUST_BACKTRACE = "1";
                 # CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG = "true";
@@ -63,10 +63,10 @@
               nativeBuildInputs =
                 with pkgs;
                 [ pkg-config ]
-                ++ lib.optionals stdenv.isDarwin [
+                ++ lib.optionals stdenv.hostPlatform.isDarwin [
                   xcbuild
                 ]
-                ++ lib.optionals stdenv.isLinux [
+                ++ lib.optionals stdenv.hostPlatform.isLinux [
                   gtk3.dev
                   makeWrapper
                 ];
@@ -75,7 +75,7 @@
                 with pkgs;
                 libs
                 ++ [ openssl.dev ]
-                ++ lib.optionals stdenv.isLinux [
+                ++ lib.optionals stdenv.hostPlatform.isLinux [
                   gtk3.dev
                   xdotool
                 ];
@@ -89,7 +89,7 @@
                 pname = "hydra-sentinel-client";
                 cargoBuildFlags = [ "--package ${pname}" ];
                 cargoTestFlags = cargoBuildFlags;
-                postFixup = lib.optionalString pkgs.stdenv.isLinux ''
+                postFixup = lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
                   wrapProgram $out/bin/hydra-sentinel-client \
                     --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath libs}
                 '';

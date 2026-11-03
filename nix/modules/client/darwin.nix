@@ -45,7 +45,7 @@ in
 
       system.activationScripts.preActivation.text = ''
         touch '${cfg.logFile}'
-        ${lib.optionalString (pkgs.stdenv.isDarwin && cfg.headless) ''
+        ${lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin && cfg.headless) ''
           chown ${toString user.uid} '${cfg.logFile}'
         ''}
         chmod 0644 '${cfg.logFile}'
