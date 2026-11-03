@@ -11,6 +11,7 @@ use axum::{Router, routing::get};
 
 use hydra_sentinel::shutdown_signal;
 use listenfd::ListenFd;
+use reqwest::StatusCode;
 use secrecy::SecretString;
 use std::{future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
@@ -52,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
             TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()),
             // Graceful shutdown will wait for outstanding requests to complete. Add a timeout so
             // requests don't hang forever.
-            TimeoutLayer::new(Duration::from_secs(10)),
+            TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, Duration::from_secs(10)),
         ));
 
     let mut listenfd = ListenFd::from_env();

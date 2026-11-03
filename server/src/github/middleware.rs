@@ -5,7 +5,7 @@ use axum::{
     middleware::{self},
     response::IntoResponse,
 };
-use hmac::{Hmac, Mac, digest::MacError};
+use hmac::{Hmac, KeyInit, Mac, digest::MacError};
 use secrecy::{ExposeSecret, SecretString};
 use sha2::Sha256;
 
