@@ -78,6 +78,7 @@
                 ++ lib.optionals stdenv.hostPlatform.isLinux [
                   gtk3.dev
                   xdotool
+                  aws-lc
                 ];
 
               cargoLock.lockFile = ./Cargo.lock;
